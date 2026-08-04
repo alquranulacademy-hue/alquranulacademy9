@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — Al Quranul Academy</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="assets/logo.png" type="image/png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body" id="admin-body" style="display:none;">
+
+  <div class="admin-topbar">
+    <div class="admin-topbar-brand">
+      <img src="assets/logo.png" alt="Al Quranul Academy logo">
+      <span>Admin Dashboard</span>
+    </div>
+    <div class="admin-topbar-user">
+      <div class="notif-wrap">
+        <button class="notif-bell" id="notif-bell-btn" type="button" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+        </button>
+        <div class="notif-dropdown" id="notif-dropdown">
+          <div class="notif-dropdown-head">
+            <h4>Notifications</h4>
+            <button type="button" id="notif-mark-all-read">Mark All Read</button>
+          </div>
+          <div id="notif-list"><div class="notif-empty">No notifications yet.</div></div>
+        </div>
+      </div>
+      <span>Signed in as <strong id="admin-user-email">&hellip;</strong></span>
+      <button class="btn btn-outline-dark btn-sm" id="logout-btn" type="button">Log Out</button>
+    </div>
+  </div>
+
+  <div class="admin-shell">
+    <nav class="admin-tabs">
+      <button class="admin-tab-btn active" data-tab="bookings" type="button">Free Trial Bookings</button>
+      <button class="admin-tab-btn" data-tab="contact-messages" type="button">Contact Messages</button>
+      <button class="admin-tab-btn" data-tab="courses" type="button">Courses</button>
+      <button class="admin-tab-btn" data-tab="blog" type="button">Blog Posts</button>
+      <button class="admin-tab-btn" data-tab="notices" type="button">Notices</button>
+    </nav>
+
+    <main class="admin-main">
+
+      <!-- ============================= BOOKINGS ============================= -->
+      <section class="admin-panel active" id="panel-bookings">
+        <div class="admin-panel-head">
+          <h2>Free Trial Bookings</h2>
+        </div>
+        <div class="admin-toolbar">
+          <input type="search" id="booking-search" aria-label="Search bookings" placeholder="Search name, email, WhatsApp, country&hellip;">
+          <select id="booking-status-filter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Admitted">Admitted</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <button class="btn btn-outline-dark btn-sm" id="export-bookings-btn" type="button">Export CSV</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Booking ID</th>
+                <th>Date</th>
+                <th>Student</th>
+                <th>Age</th>
+                <th>Country</th>
+                <th>WhatsApp</th>
+                <th>Email</th>
+                <th>Teacher Pref.</th>
+                <th>Preferred Time</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bookings-tbody">
+              <tr class="admin-empty-row"><td colspan="12">Loading bookings&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================= CONTACT MESSAGES ============================= -->
+      <section class="admin-panel" id="panel-contact-messages">
+        <div class="admin-panel-head">
+          <h2>Contact Messages</h2>
+        </div>
+        <div class="admin-toolbar">
+          <input type="search" id="contact-message-search" aria-label="Search contact messages" placeholder="Search name, email, subject&hellip;">
+          <select id="contact-message-view-filter" aria-label="Filter by view">
+            <option value="active">Active</option>
+            <option value="archived">Archived</option>
+            <option value="all">All</option>
+          </select>
+          <button class="btn btn-outline-dark btn-sm" id="export-contact-messages-btn" type="button">Export CSV</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Subject</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="contact-messages-tbody">
+              <tr class="admin-empty-row"><td colspan="7">Loading messages&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================= COURSES ============================= -->
+      <section class="admin-panel" id="panel-courses">
+        <div class="admin-panel-head">
+          <h2>Courses</h2>
+          <button class="btn btn-primary btn-sm" id="add-course-btn" type="button">+ Add Course</button>
+        </div>
+        <div id="courses-list">
+          <p class="small">Loading courses&hellip;</p>
+        </div>
+      </section>
+
+      <!-- ============================= BLOG ============================= -->
+      <section class="admin-panel" id="panel-blog">
+        <div class="admin-panel-head">
+          <h2>Blog Posts</h2>
+          <button class="btn btn-primary btn-sm" id="add-blog-btn" type="button">+ Add Blog Post</button>
+        </div>
+        <div id="blog-list">
+          <p class="small">Loading blog posts&hellip;</p>
+        </div>
+      </section>
+
+      <!-- ============================= NOTICES ============================= -->
+      <section class="admin-panel" id="panel-notices">
+        <div class="admin-panel-head">
+          <h2>Notices</h2>
+          <button class="btn btn-primary btn-sm" id="add-notice-btn" type="button">+ Add Notice</button>
+        </div>
+        <p class="small" style="margin-bottom:18px;">The most recent <strong>active</strong> notice is shown in a bar at the top of every page on the public site.</p>
+        <div id="notices-list">
+          <p class="small">Loading notices&hellip;</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================= COURSE FORM OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="course-form-overlay">
+    <div class="admin-form-panel">
+      <button class="admin-form-close" type="button" data-close="course-form-overlay" aria-label="Close">&times;</button>
+      <h3 id="course-form-title">Add Course</h3>
+      <form id="course-form" novalidate>
+        <input type="hidden" id="course-id">
+        <div class="form-row">
+          <div class="field"><label>Title</label><input type="text" id="course-title" required placeholder="e.g. Noorani Qaida"></div>
+          <div class="field"><label>Slug (URL-safe, unique)</label><input type="text" id="course-slug" required placeholder="e.g. noorani-qaida"></div>
+        </div>
+        <div class="field"><label>Tagline</label><input type="text" id="course-tagline" required placeholder="One-line summary shown on the course card"></div>
+        <div class="form-row">
+          <div class="field"><label>Icon</label>
+            <select id="course-icon">
+              <option value="book">Book</option>
+              <option value="book-open">Open Book</option>
+              <option value="sparkle">Sparkle</option>
+              <option value="heart-book">Heart Book</option>
+            </select>
+          </div>
+          <div class="field"><label>Order (lower = shown first)</label><input type="number" id="course-order" value="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Duration</label><input type="text" id="course-duration" required placeholder="e.g. 3–6 months"></div>
+          <div class="field"><label>Level</label><input type="text" id="course-level" required placeholder="e.g. Beginner · Age 4+"></div>
+        </div>
+        <div class="field"><label>Overview</label><textarea id="course-overview" required placeholder="Full description shown on the course detail page"></textarea></div>
+        <div class="field"><label>Learning Outcomes (one per line)</label><textarea id="course-outcomes" placeholder="Recognise and pronounce all 29 Arabic letters&#10;Understand short and long vowel sounds"></textarea></div>
+        <div class="field"><label>Who Can Join</label><textarea id="course-who" placeholder="e.g. Children aged 4 and above, and adults new to Arabic script."></textarea></div>
+        <div class="field"><label>Class Format</label><textarea id="course-format" placeholder="e.g. One-to-one live online classes, 2–3 sessions per week."></textarea></div>
+
+        <div class="field">
+          <label>Image (optional — stored for future use; not shown on the public course cards)</label>
+          <input type="file" id="course-image-input" accept="image/*">
+          <img class="admin-image-preview" id="course-image-preview" alt="Preview">
+          <div class="admin-upload-progress" id="course-upload-progress">Uploading&hellip;</div>
+          <input type="hidden" id="course-image-url">
+        </div>
+
+        <div class="admin-checkbox-row">
+          <input type="checkbox" id="course-published">
+          <label for="course-published" style="margin:0;">Published (visible on the public Courses page)</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="course-save-btn">Save Course</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================= BLOG FORM OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="blog-form-overlay">
+    <div class="admin-form-panel">
+      <button class="admin-form-close" type="button" data-close="blog-form-overlay" aria-label="Close">&times;</button>
+      <h3 id="blog-form-title">Add Blog Post</h3>
+      <form id="blog-form" novalidate>
+        <input type="hidden" id="blog-id">
+        <div class="field"><label>Title</label><input type="text" id="blog-title" required placeholder="e.g. Why Every Child Should Start With Noorani Qaida"></div>
+        <div class="form-row">
+          <div class="field"><label>Slug (URL-safe, unique)</label><input type="text" id="blog-slug" required placeholder="e.g. why-start-noorani-qaida"></div>
+          <div class="field"><label>Category</label><input type="text" id="blog-category" required placeholder="e.g. Quran Learning"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Display Date</label><input type="text" id="blog-date" required placeholder="e.g. July 12, 2026"></div>
+          <div class="field"><label>Read Time</label><input type="text" id="blog-read" placeholder="e.g. 4 min read"></div>
+        </div>
+        <div class="field"><label>Excerpt</label><textarea id="blog-excerpt" required placeholder="Short summary shown on the blog listing card"></textarea></div>
+        <div class="field"><label>Body (separate paragraphs with a blank line)</label><textarea id="blog-body" style="min-height:180px;" required placeholder="First paragraph.&#10;&#10;Second paragraph."></textarea></div>
+
+        <div class="field">
+          <label>Image (optional — stored for future use; not shown on the public blog cards)</label>
+          <input type="file" id="blog-image-input" accept="image/*">
+          <img class="admin-image-preview" id="blog-image-preview" alt="Preview">
+          <div class="admin-upload-progress" id="blog-upload-progress">Uploading&hellip;</div>
+          <input type="hidden" id="blog-image-url">
+        </div>
+
+        <div class="admin-checkbox-row">
+          <input type="checkbox" id="blog-published">
+          <label for="blog-published" style="margin:0;">Published (visible on the public Blog page)</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="blog-save-btn">Save Blog Post</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================= NOTICE FORM OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="notice-form-overlay">
+    <div class="admin-form-panel">
+      <button class="admin-form-close" type="button" data-close="notice-form-overlay" aria-label="Close">&times;</button>
+      <h3>Add Notice</h3>
+      <form id="notice-form" novalidate>
+        <div class="field"><label>Notice Text</label><textarea id="notice-text" required placeholder="e.g. Ramadan class schedule now open — book your slot early!"></textarea></div>
+        <div class="admin-checkbox-row">
+          <input type="checkbox" id="notice-active" checked>
+          <label for="notice-active" style="margin:0;">Active (show on the public site now)</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="notice-save-btn">Save Notice</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="admin-toast" id="admin-toast"></div>
+
+  <script type="module" src="js/firebase.js"></script>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — Al Quranul Academy</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="assets/logo.png" type="image/png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+
+  <div class="admin-login-wrap">
+    <div class="admin-login-card">
+      <div class="admin-login-logo">
+        <img src="assets/logo.png" alt="Al Quranul Academy logo">
+        <h1>Al Quranul Academy</h1>
+        <span>Admin Dashboard</span>
+      </div>
+
+      <div class="admin-error-box" id="login-error"></div>
+
+      <form id="admin-login-form" novalidate>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" name="email" id="login-email" required placeholder="you@alquranulacademy.com" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" name="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="login-btn">Sign In</button>
+      </form>
+
+      <p class="small center" style="margin-top:18px;">Staff accounts are created by the academy owner in the Firebase Console. Contact the owner if you need access.</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/firebase.js"></script>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>

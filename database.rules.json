@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "bookings": {
+      ".read": "auth != null",
+      "$bookingId": {
+        ".write": "auth != null || !data.exists()"
+      }
+    },
+    "contactMessages": {
+      ".read": "auth != null",
+      "$messageId": {
+        ".write": "auth != null || !data.exists()"
+      }
+    },
+    "courses": {
+      ".read": true,
+      ".write": "auth != null",
+      ".indexOn": ["slug", "order"]
+    },
+    "blogPosts": {
+      ".read": true,
+      ".write": "auth != null",
+      ".indexOn": ["slug", "timestamp"]
+    },
+    "notices": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    ".read": false,
+    ".write": false
+  }
+}
