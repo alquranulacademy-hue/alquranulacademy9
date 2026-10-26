@@ -7,7 +7,11 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="assets/logo.png" type="image/png">
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/admin.css?v=20261026d">
+<!-- ID card fonts (Sir's final frame): Playfair Display + Poppins, so the emailed PNG matches the approved design, not Georgia/Arial fallbacks. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="admin-body" id="admin-body" style="display:none;">
 
@@ -39,6 +43,7 @@
     <nav class="admin-tabs">
       <button class="admin-tab-btn active" data-tab="bookings" type="button">Free Trial Bookings</button>
       <button class="admin-tab-btn" data-tab="contact-messages" type="button">Contact Messages</button>
+      <button class="admin-tab-btn" data-tab="admissions" type="button">Admissions</button>
       <button class="admin-tab-btn" data-tab="courses" type="button">Courses</button>
       <button class="admin-tab-btn" data-tab="blog" type="button">Blog Posts</button>
       <button class="admin-tab-btn" data-tab="notices" type="button">Notices</button>
@@ -69,19 +74,12 @@
                 <th>Booking ID</th>
                 <th>Date</th>
                 <th>Student</th>
-                <th>Age</th>
-                <th>Country</th>
-                <th>WhatsApp</th>
-                <th>Email</th>
-                <th>Teacher Pref.</th>
-                <th>Preferred Time</th>
-                <th>Message</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="bookings-tbody">
-              <tr class="admin-empty-row"><td colspan="12">Loading bookings&hellip;</td></tr>
+              <tr class="admin-empty-row"><td colspan="5">Loading bookings&hellip;</td></tr>
             </tbody>
           </table>
         </div>
@@ -107,15 +105,47 @@
               <tr>
                 <th>Date</th>
                 <th>Name</th>
-                <th>Email</th>
                 <th>Subject</th>
-                <th>Message</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="contact-messages-tbody">
-              <tr class="admin-empty-row"><td colspan="7">Loading messages&hellip;</td></tr>
+              <tr class="admin-empty-row"><td colspan="5">Loading messages&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================= ADMISSIONS ============================= -->
+      <section class="admin-panel" id="panel-admissions">
+        <div class="admin-panel-head">
+          <h2>Admissions</h2>
+        </div>
+        <div class="admin-toolbar">
+          <input type="search" id="admission-search" aria-label="Search admissions" placeholder="Search name, email, WhatsApp, country, course&hellip;">
+          <select id="admission-status-filter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Admitted">Admitted</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <button class="btn btn-outline-dark btn-sm" id="export-admissions-btn" type="button">Export CSV</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admissions-tbody">
+              <tr class="admin-empty-row"><td colspan="5">Loading admissions&hellip;</td></tr>
             </tbody>
           </table>
         </div>
@@ -259,9 +289,55 @@
     </div>
   </div>
 
+  <!-- ============================= BOOKING DETAIL OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="booking-detail-overlay">
+    <div class="admin-form-panel detail-panel">
+      <button class="admin-form-close" type="button" data-close="booking-detail-overlay" aria-label="Close">&times;</button>
+      <h3>Booking Details</h3>
+      <div id="booking-detail-body" class="detail-list"></div>
+    </div>
+  </div>
+
+  <!-- ============================= MESSAGE DETAIL OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="message-detail-overlay">
+    <div class="admin-form-panel detail-panel">
+      <button class="admin-form-close" type="button" data-close="message-detail-overlay" aria-label="Close">&times;</button>
+      <h3>Message Details</h3>
+      <div id="message-detail-body" class="detail-list"></div>
+    </div>
+  </div>
+
+  <!-- ============================= ADMISSION DETAIL OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="admission-detail-overlay">
+    <div class="admin-form-panel detail-panel">
+      <button class="admin-form-close" type="button" data-close="admission-detail-overlay" aria-label="Close">&times;</button>
+      <h3>Admission Details</h3>
+      <div id="admission-detail-body" class="detail-list"></div>
+    </div>
+  </div>
+
+  <!-- ============================= ADMISSION APPROVE OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="admission-approve-overlay">
+    <div class="admin-form-panel detail-panel">
+      <button class="admin-form-close" type="button" data-close="admission-approve-overlay" aria-label="Close">&times;</button>
+      <h3>Approve Admission</h3>
+      <div id="admission-approve-body" class="detail-list"></div>
+    </div>
+  </div>
+
+  <!-- ============================= ID CARD OVERLAY (Admitted records only) ============================= -->
+  <div class="admin-form-overlay" id="id-card-overlay">
+    <div class="admin-form-panel detail-panel">
+      <button class="admin-form-close" type="button" data-close="id-card-overlay" aria-label="Close">&times;</button>
+      <h3>ID Card</h3>
+      <div id="id-card-body" class="detail-list"></div>
+    </div>
+  </div>
+
   <div class="admin-toast" id="admin-toast"></div>
 
   <script type="module" src="js/firebase.js"></script>
-  <script src="js/admin.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="js/admin.js?v=20261026g" defer></script>
 </body>
 </html>
