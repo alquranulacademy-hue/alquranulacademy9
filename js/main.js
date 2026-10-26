@@ -459,6 +459,184 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
+  /* ---- Admission form: live submission via the SAME Google Apps Script
+     Web App used by Free Trial / Contact (Code.gs routes on
+     form_type === 'admission'). Mirrors the Free Trial handler exactly,
+     plus: gender field, and a photo rule — photo is REQUIRED, except
+     for female students aged 12+, for whom it is optional. The photo
+     is compressed in-browser to ~256px JPEG (~20KB data URL) before
+     sending, so it fits a Firebase record and an Apps Script payload,
+     and it is used ONLY for this student's own ID card. ---- */
+  var admissionForm = document.getElementById('admission-form');
+  if (admissionForm) {
+    var adSubmitBtn = admissionForm.querySelector('button[type="submit"]');
+    var adStatusBox = document.getElementById('admission-status');
+    var adPhotoInput = document.getElementById('admission-photo');
+    var adPhotoPreview = document.getElementById('admission-photo-preview');
+    var adOriginalBtnText = adSubmitBtn ? adSubmitBtn.textContent : 'Submit Application';
+    var adSubmitting = false;
+    var adLoadingTimer = null;
+    var adPhotoDataUrl = '';
+
+    function adSetStatus(type, message) {
+      if (!adStatusBox) return;
+      adStatusBox.textContent = message;
+      adStatusBox.style.display = 'block';
+      if (type === 'error') {
+        adStatusBox.style.background = '#FBEAEA';
+        adStatusBox.style.borderColor = '#D9534F';
+        adStatusBox.style.borderStyle = 'dashed';
+        adStatusBox.style.color = '#9B2C2C';
+      } else {
+        adStatusBox.style.background = '';
+        adStatusBox.style.borderColor = '#0B6B3A';
+        adStatusBox.style.borderStyle = 'solid';
+        adStatusBox.style.color = '';
+      }
+      adStatusBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function adSetLoading(isLoading) {
+      if (!adSubmitBtn) return;
+      adSubmitBtn.disabled = isLoading;
+      adSubmitBtn.style.opacity = isLoading ? '0.7' : '';
+      adSubmitBtn.style.cursor = isLoading ? 'not-allowed' : '';
+      if (isLoading) {
+        var dotCount = 0;
+        adSubmitBtn.textContent = 'Sending';
+        adLoadingTimer = setInterval(function () {
+          dotCount = (dotCount + 1) % 4;
+          adSubmitBtn.textContent = 'Sending' + '.'.repeat(dotCount);
+        }, 400);
+      } else {
+        if (adLoadingTimer) { clearInterval(adLoadingTimer); adLoadingTimer = null; }
+        adSubmitBtn.textContent = adOriginalBtnText;
+      }
+    }
+
+    function adPhotoRequired() {
+      var gender = document.getElementById('admission-gender');
+      var ageEl = document.getElementById('admission-age');
+      var age = parseInt(ageEl ? ageEl.value : '', 10);
+      // Exemption only: female AND age 12 or above. Everyone else: required.
+      if (gender && gender.value === 'Female' && !isNaN(age) && age >= 12) return false;
+      return true;
+    }
+
+    function adCompressPhoto(file) {
+      return new Promise(function (resolve, reject) {
+        var img = new Image();
+        var url = URL.createObjectURL(file);
+        img.onload = function () {
+          try {
+            var max = 256;
+            var scale = Math.min(1, max / Math.max(img.width, img.height));
+            var w = Math.max(1, Math.round(img.width * scale));
+            var h = Math.max(1, Math.round(img.height * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+          } catch (e) { URL.revokeObjectURL(url); reject(e); }
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read photo.')); };
+        img.src = url;
+      });
+    }
+
+    if (adPhotoInput) {
+      adPhotoInput.addEventListener('change', function () {
+        var f = adPhotoInput.files && adPhotoInput.files[0];
+        if (!f) { adPhotoDataUrl = ''; if (adPhotoPreview) adPhotoPreview.style.display = 'none'; return; }
+        adCompressPhoto(f).then(function (dataUrl) {
+          adPhotoDataUrl = dataUrl;
+          if (adPhotoPreview) { adPhotoPreview.src = dataUrl; adPhotoPreview.style.display = 'block'; }
+        }).catch(function () { adPhotoDataUrl = ''; });
+      });
+    }
+
+    var AD_DEFAULT_SUCCESS_MSG = 'Thank you! Your application has been received, and our team will contact you within 24 hours to confirm enrolment.';
+    var AD_DEFAULT_ERROR_MSG = 'Sorry, something went wrong sending your application. Please try again, or reach us directly on WhatsApp / email.';
+
+    admissionForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (adSubmitting) return;
+      if (!admissionForm.checkValidity()) { admissionForm.reportValidity(); return; }
+      var honey = admissionForm.querySelector('input[name="_honey"]');
+      if (honey && honey.value) { admissionForm.reset(); adSetStatus('success', AD_DEFAULT_SUCCESS_MSG); return; }
+      // Photo rule, enforced in-browser (Apps Script enforces it again server-side).
+      if (adPhotoRequired() && !adPhotoDataUrl && !(adPhotoInput && adPhotoInput.files && adPhotoInput.files[0])) {
+        adSetStatus('error', 'A student photo is required for the ID card, except for female students aged 12 and above.');
+        return;
+      }
+      adSubmitting = true;
+      adSetLoading(true);
+      if (adStatusBox) adStatusBox.style.display = 'none';
+      var endpoint = admissionForm.getAttribute('data-endpoint');
+      var formData = new FormData(admissionForm);
+      var payload = {};
+      formData.forEach(function (value, key) { payload[key] = value; });
+      // Photo file itself is not JSON-serialisable — send the compressed data URL instead.
+      delete payload.photo;
+      if (adPhotoInput && adPhotoInput.files && adPhotoInput.files[0] && !adPhotoDataUrl) {
+        try { adPhotoDataUrl = await adCompressPhoto(adPhotoInput.files[0]); } catch (err) { /* fall through with no photo — server will reject if required */ }
+      }
+      payload.photo_data_url = adPhotoDataUrl || '';
+      payload.photo_provided = adPhotoDataUrl ? 'Yes' : 'No';
+      try {
+        var response = await fetch(endpoint, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Accept': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error('Server responded with status ' + response.status);
+        var result;
+        try { result = await response.json(); } catch (parseErr) { throw new Error('Received an unreadable response from the server.'); }
+        if (result && result.success === true) {
+          admissionForm.reset();
+          adPhotoDataUrl = '';
+          if (adPhotoPreview) adPhotoPreview.style.display = 'none';
+          adSetStatus('success', result.message || AD_DEFAULT_SUCCESS_MSG);
+          trackFBEvent('Lead');
+          if (window.firebaseDB && window.fb) {
+            try {
+              window.fb.push(window.fb.ref(window.firebaseDB, 'admissions'), {
+                student_name: payload.student_name || '',
+                age: payload.age || '',
+                gender: payload.gender || '',
+                country: payload.country || '',
+                guardian_name: payload.guardian_name || '',
+                whatsapp_number: payload.whatsapp_number || '',
+                email: payload.email || '',
+                course: payload.course || '',
+                teacher_preference: payload.teacher_preference || 'No preference',
+                preferred_class_time: payload.preferred_class_time || '',
+                message: payload.message || '',
+                photo_data_url: payload.photo_data_url || '',
+                photo_provided: payload.photo_provided || 'No',
+                status: 'Pending',
+                read: false,
+                createdAt: Date.now(),
+                source: 'admission-form'
+              }).catch(function () { /* supplementary write only */ });
+            } catch (fbErr) { /* silently ignored */ }
+          }
+        } else if (result && result.success === false) {
+          adSetStatus('error', result.error || result.message || AD_DEFAULT_ERROR_MSG);
+        } else {
+          throw new Error('Unexpected response format from the server.');
+        }
+      } catch (err) {
+        adSetStatus('error', AD_DEFAULT_ERROR_MSG);
+      } finally {
+        adSubmitting = false;
+        adSetLoading(false);
+      }
+    });
+  }
 });
 
 /* =====================================================
