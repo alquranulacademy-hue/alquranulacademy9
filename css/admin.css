@@ -31,6 +31,7 @@
 .admin-body .btn:active:not(:disabled){
   transform:translateY(0) scale(.98);
 }
+.admin-body .btn-danger{background:#FBEAEA;color:#9B2C2C;}
 
 /* ---------- Login page ---------- */
 .admin-login-wrap{
@@ -237,7 +238,7 @@ table.admin-table{
   width:100%;
   border-collapse:collapse;
   font-size:13.5px;
-  min-width:760px;
+  min-width:560px;
 }
 .admin-table th{
   text-align:left;
@@ -263,7 +264,7 @@ table.admin-table{
 .cell-nowrap{white-space:nowrap;}
 .cell-wrap{word-break:break-word;overflow-wrap:anywhere;}
 @media (max-width:640px){
-  .admin-table{font-size:13px;min-width:640px;}
+  .admin-table{font-size:13px;min-width:480px;}
   .admin-table th, .admin-table td{padding:10px 12px;}
 }
 .admin-table tr:hover td{background:var(--emerald-50);}
@@ -301,8 +302,7 @@ table.admin-table{
 .status-Cancelled{background:#FBEAEA;color:#9B2C2C;}
 
 .pub-yes{background:var(--emerald-100);color:var(--emerald-800);}
-.pub-no{background:#F1F1EC;color:var(--ink-faint);}
-
+.pub-no,
 .archive-badge{background:#F1F1EC;color:var(--ink-faint);}
 
 /* ---------- Content cards (Courses/Blog/Notices lists) ---------- */
@@ -325,7 +325,7 @@ table.admin-table{
 
 /* ---------- Slide-over form panel ---------- */
 .admin-form-overlay{
-  display:none;
+  display:flex;
   position:fixed;inset:0;
   background:rgba(11,61,38,0.45);
   z-index:1000;
@@ -333,8 +333,17 @@ table.admin-table{
   justify-content:center;
   overflow-y:auto;
   padding:40px 20px;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .2s ease, visibility 0s linear .2s;
 }
-.admin-form-overlay.show{display:flex;}
+.admin-form-overlay.show{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transition:opacity .2s ease, visibility 0s linear;
+}
 .admin-form-panel{
   background:var(--white);
   border-radius:var(--radius-lg);
@@ -342,6 +351,12 @@ table.admin-table{
   max-width:640px;
   width:100%;
   padding:32px;
+  transform:translateY(10px) scale(.98);
+  transition:transform .2s ease;
+}
+.admin-form-overlay.show .admin-form-panel{transform:translateY(0) scale(1);}
+@media (prefers-reduced-motion:reduce){
+  .admin-form-overlay, .admin-form-panel{transition:none;}
 }
 .admin-form-panel h3{margin-bottom:20px;padding-right:36px;}
 .admin-form-close{
@@ -363,6 +378,135 @@ table.admin-table{
   margin-bottom:20px;font-weight:600;font-size:14px;
 }
 .admin-checkbox-row input{width:18px;height:18px;}
+
+/* ---------- Detail panel (View Details — Bookings & Contact Messages) ----------
+   Same overlay/panel/close-button chrome as the Add/Edit forms above (zero new
+   CSS needed for that part); this only styles the profile-card header and the
+   icon-led vertical field list inside it, deliberately NOT laid out like a
+   table. */
+.detail-panel{max-width:540px;}
+
+.detail-header{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding-bottom:18px;
+  margin-bottom:6px;
+  border-bottom:1px solid rgba(11,61,38,0.09);
+}
+.detail-header-avatar{
+  width:46px;height:46px;
+  border-radius:50%;
+  background:var(--emerald-100);
+  color:var(--emerald-700);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:18px;
+  flex-shrink:0;
+}
+.detail-header-text{min-width:0;flex:1;}
+.detail-header-title{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:19px;
+  color:var(--emerald-950);
+  margin:0 0 6px;
+  word-break:break-word;
+}
+
+.detail-list{display:flex;flex-direction:column;}
+.detail-field{
+  padding:14px 2px;
+  border-bottom:1px solid rgba(11,61,38,0.09);
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+.detail-field:last-child{border-bottom:none;}
+.detail-field-icon{
+  width:30px;height:30px;
+  border-radius:8px;
+  background:var(--emerald-50);
+  color:var(--emerald-700);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  margin-top:1px;
+}
+.detail-field-icon svg{width:15px;height:15px;}
+.detail-field-body{min-width:0;flex:1;}
+.detail-field-label{
+  font-size:11.5px;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  color:var(--emerald-700);
+  margin-bottom:6px;
+}
+.detail-field-value{
+  font-size:15.5px;
+  color:var(--ink);
+  line-height:1.6;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
+.detail-field-value.is-empty{color:var(--ink-faint);font-style:italic;}
+.detail-field-value-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.detail-link{color:var(--emerald-700);text-decoration:none;font-weight:600;}
+.detail-link:hover{text-decoration:underline;}
+
+.detail-copy-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;
+  border-radius:7px;
+  border:1.5px solid rgba(11,61,38,0.14);
+  background:var(--white);
+  color:var(--emerald-700);
+  cursor:pointer;
+  flex-shrink:0;
+  transition:background .2s ease, border-color .2s ease, transform .15s ease;
+}
+.detail-copy-btn svg{width:13px;height:13px;}
+.detail-copy-btn:hover{background:var(--emerald-50);border-color:var(--emerald-600);}
+.detail-copy-btn:active{transform:scale(.92);}
+.detail-copy-btn:focus-visible{outline:3px solid var(--gold-600);outline-offset:2px;}
+.detail-copy-btn.copied{background:var(--emerald-700);border-color:var(--emerald-700);color:var(--white);}
+
+.detail-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:22px;
+  padding-top:20px;
+  border-top:1px solid rgba(11,61,38,0.09);
+}
+
+@media (max-width:640px){
+  .admin-form-overlay{padding:0;align-items:stretch;}
+  .admin-form-overlay .detail-panel{
+    max-width:none;
+    width:100%;
+    min-height:100%;
+    border-radius:0;
+    padding:24px 18px 32px;
+  }
+}
+
+/* ---------- Compact action-button group (table Actions cells) ----------
+   Replaces the previous per-button inline margin-right + white-space:nowrap
+   pattern with one shared, wrapping flex group — buttons stack gracefully
+   instead of forcing horizontal scroll on narrow screens. */
+.action-btns{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
 .admin-image-preview{
   max-width:160px;
   border-radius:10px;
@@ -488,4 +632,79 @@ tr.msg-archived{opacity:.6;}
 .msg-unread-dot{
   display:inline-block;width:8px;height:8px;border-radius:50%;
   background:var(--gold-600);margin-right:6px;flex-shrink:0;
+}
+
+/* ---------- Mobile dashboard fix (2026-10-26) ----------
+   The dashboard was unusable on phones: form/detail panels kept
+   desktop padding and radius, tables scrolled inside a fixed-height
+   box, toolbar inputs were squeezed, tap targets were small, and the
+   1000px ID-card preview in Approve had to be scrolled sideways.
+   All rules below are scoped to .admin-* classes, so public pages
+   are untouched. Desktop layout (>=901px) is unchanged. */
+@media (max-width:900px){
+  /* Fix the remaining right-edge cut: in column direction, flex-start
+     on the cross axis stops .admin-main stretching, so its content
+     width overflows right. Stretch it to the shell width instead. */
+  .admin-shell{align-items:stretch;}
+  .admin-main{width:100%;min-width:0;}
+  .admin-tabs{scrollbar-width:thin;}
+  .admin-tab-btn{flex-shrink:0;min-height:44px;}
+  .admin-shell{padding:20px 16px;}
+}
+@media (max-width:640px){
+  .admin-topbar{padding:12px 14px;max-width:100%;}
+  .admin-shell{max-width:100%;overflow-x:hidden;}
+  .admin-tabs{max-width:100%;}
+  .admin-topbar-brand span{font-size:15px;white-space:normal;}
+  .admin-topbar-user{width:100%;gap:10px;}
+  .admin-topbar-user > span{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .admin-topbar-user > span strong{display:block;overflow:hidden;text-overflow:ellipsis;}
+  .admin-login-wrap{padding:16px;}
+  .admin-login-card{padding:28px 20px;}
+  .admin-panel-head .btn{width:100%;}
+  .admin-toolbar input[type="text"],
+  .admin-toolbar input[type="search"],
+  .admin-toolbar select{flex:1 1 100%;min-width:0;}
+  .admin-toolbar .btn{width:100%;}
+  /* Mobile card tables: NO horizontal scroll at all on phones.
+     The screenshot showed the whole page scrolled sideways to reach
+     Actions, losing the left columns and the topbar/tabs. On phones
+     each row becomes a card, with its column label shown in front
+     of the value (from the data-label attributes in admin.js). */
+  /* Belt-and-braces width lock: nothing inside the dashboard may be
+     wider than the phone, even if a flex item's content (long date,
+     long ID, select) tries to push it. Values may wrap instead of
+     pushing the card past the right edge. */
+  .admin-shell, .admin-main, .admin-panel, .admin-table-wrap, .admin-table, .admin-table tr{max-width:100%;}
+  .admin-table-wrap{max-height:none;overflow:visible;background:transparent;box-shadow:none;border-radius:0;}
+  .admin-table, .admin-table tbody, .admin-table tr, .admin-table td{display:block;width:100%;}
+  .admin-table td{min-width:0;max-width:100%;overflow-wrap:anywhere;}
+  .admin-table td.cell-nowrap{white-space:normal;}
+  .admin-table td > *{min-width:0;max-width:100%;}
+  .admin-table thead{display:none;}
+  .admin-table{min-width:0;font-size:14px;border-collapse:separate;}
+  .admin-table tr{background:var(--white);border-radius:12px;box-shadow:var(--shadow-card);margin-bottom:14px;padding:6px 16px 14px;overflow:hidden;}
+  .admin-table td{padding:10px 0;border-top:1px solid rgba(11,61,38,0.07);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .admin-table td:first-child{border-top:none;}
+  .admin-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--emerald-700);min-width:86px;flex-shrink:0;}
+  .admin-table td[data-label="Actions"]{display:block;padding-top:12px;}
+  .admin-table td[data-label="Actions"]::before{display:none;}
+  .admin-table td[data-label="Actions"] .action-btns{flex-direction:column;}
+  .admin-table td[data-label="Actions"] .btn{width:100%;justify-content:center;}
+  .admin-table select{flex:1;min-width:0;}
+  .action-btns .btn{min-height:40px;display:inline-flex;align-items:center;}
+  .admin-item-card{padding:16px;}
+  .admin-item-actions{width:100%;}
+  .admin-item-actions .btn{flex:1 1 auto;text-align:center;justify-content:center;}
+  .admin-form-overlay{padding:0;align-items:stretch;}
+  .admin-form-panel{max-width:none;width:100%;min-height:100%;border-radius:0;padding:24px 18px 32px;}
+  .admin-form-panel h3{font-size:19px;}
+  .detail-header-title{font-size:17px;}
+  .admin-toast{left:16px;right:16px;bottom:16px;max-width:none;}
+  .notif-dropdown{max-width:calc(100vw - 28px);}
+  #id-card-preview-wrap{overflow-x:hidden !important;}
+}
+@media (max-width:380px){
+  .admin-shell{padding:14px 12px;}
+  .admin-topbar-brand span{font-size:14px;}
 }
