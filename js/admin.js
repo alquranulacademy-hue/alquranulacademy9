@@ -1006,13 +1006,19 @@
       '</div>';
     }
 
-    /* ---- NEW Approve flow (Sir, 2026-10-26): Approve does NOT show
-       the ID card preview any more. It only confirms, assigns Student
-       ID + Admission Date (= today), sends the confirmation email
-       WITH the ID card PNG attached (generated silently off-screen,
-       so the admin never sees a card at Approve time), and marks the
-       record Admitted. The ID card itself is then handled separately
-       via the "ID Card" button that appears beside Admitted records. */
+    /* ---- NEW Approve flow (Sir, 2026-10-26, CORRECTED 2026-10-26):
+       Approve does NOT show the ID card preview, and — Sir's explicit
+       correction — it does NOT send the ID card either. It only
+       confirms, assigns Student ID + Admission Date (= today), sends
+       the congratulations/confirmation email WITH NO attachment, and
+       marks the record Admitted. The ID card goes ONLY in a second,
+       separate email, when Sir clicks "Send ID Card by Email" in the
+       ID Card menu (that flow still posts the PNG, so Apps Script
+       attaches it there and only there). Implementation: Approve
+       posts admission_approve with NO id_card_png_base64 field at
+       all, and Apps Script branches on the presence of that field —
+       no PNG = congratulations email, no attachment; PNG present =
+       ID-card email with attachment. */
     function openAdmissionApprove(id) {
       var a = admissionsCache.find(function (x) { return x.id === id; });
       if (!a) return;
@@ -1020,79 +1026,40 @@
       var admissionDate = formatCardDate(new Date());
       var body = document.getElementById('admission-approve-body');
       body.innerHTML = '<p>Approve <strong>' + escapeHtml(a.student_name || '') + '</strong>?</p>' +
-        '<p class="small">This will assign <strong>' + escapeHtml(studentId) + '</strong> and Admission Date <strong>' + escapeHtml(admissionDate) + '</strong> (today), mark this record Admitted, and send the confirmation email with the ID card attached. The ID card preview will NOT be shown here — after approval, use the <strong>ID Card</strong> button beside the record to view, edit, download, or re-send the ID card.</p>' +
+        '<p class="small">This will assign <strong>' + escapeHtml(studentId) + '</strong> and Admission Date <strong>' + escapeHtml(admissionDate) + '</strong> (today), mark this record Admitted, and send the congratulations/confirmation email <strong>without the ID card</strong>. The ID card will be sent separately, in a second email, only when you click <strong>Send ID Card by Email</strong> in the ID Card menu.</p>' +
         '<div id="admission-approve-status" class="small" style="margin-top:12px;"></div>' +
         '<button class="btn btn-primary btn-block" type="button" id="admission-confirm-approve-btn" style="margin-top:12px;">Confirm Approve &amp; Send Confirmation Email</button>';
       document.getElementById('admission-approve-overlay').classList.add('show');
       document.getElementById('admission-confirm-approve-btn').addEventListener('click', function () {
         var btn = this;
         var statusEl = document.getElementById('admission-approve-status');
-        btn.disabled = true; btn.textContent = 'Generating ID card…';
-        if (typeof html2canvas !== 'function') {
-          statusEl.textContent = 'ID card generator (html2canvas) is not loaded. Please reload the dashboard and try again.';
-          btn.disabled = false; btn.textContent = 'Confirm Approve & Send Confirmation Email';
-          return;
-        }
-        // Render the card off-screen (never display:none, or html2canvas
-        // captures a blank image) so the PNG can be generated silently.
-        var hidden = document.getElementById('id-card-hidden-wrap');
-        if (!hidden) {
-          hidden = document.createElement('div');
-          hidden.id = 'id-card-hidden-wrap';
-          hidden.style.cssText = 'position:fixed;left:-1200px;top:0;width:1000px;height:739px;overflow:hidden;';
-          document.body.appendChild(hidden);
-        }
-        // Crop the photo to the box aspect FIRST, so the PNG cannot
-        // stretch it (see idCardPreviewHtml note), then wait for the
-        // card images AND the Playfair/Poppins fonts before capturing.
-        cropPhotoForCard(a.photo_data_url || '').then(function (cropped) {
-          hidden.innerHTML = idCardPreviewHtml(a, studentId, admissionDate, cropped);
-          var cardEl = document.getElementById('id-card-preview');
-          var imgs = cardEl ? cardEl.querySelectorAll('img') : [];
-          var waitImgs = new Promise(function (resolve) {
-            var done = 0, total = imgs.length, finished = false;
-            function fin() { if (!finished) { finished = true; resolve(); } }
-            if (!total) { fin(); return; }
-            setTimeout(fin, 1200);
-            imgs.forEach(function (im) {
-              if (im.complete) { done++; if (done >= total) fin(); }
-              else { im.onload = function () { done++; if (done >= total) fin(); }; im.onerror = function () { done++; if (done >= total) fin(); }; }
-            });
+        btn.disabled = true; btn.textContent = 'Sending confirmation…';
+        // No ID card PNG is generated or posted here — deliberately.
+        var payload = {
+          form_type: 'admission_approve',
+          student_name: a.student_name || '',
+          email: a.email || '',
+          course: a.course || '',
+          country: a.country || '',
+          student_id: studentId,
+          admission_date: admissionDate
+        };
+        fetch(ADMISSIONS_ENDPOINT, { method: 'POST', redirect: 'follow', headers: { 'Accept': 'application/json' }, body: JSON.stringify(payload) })
+          .then(function (res) { if (!res.ok) throw new Error('Server responded with status ' + res.status); return res.json(); })
+          .then(function (result) {
+            if (!result || result.success !== true) throw new Error((result && (result.error || result.message)) || 'Apps Script did not confirm the approval. The record has NOT been marked Admitted.');
+            return update(ref(db, 'admissions/' + id), { status: 'Admitted', student_id: studentId, admission_date: admissionDate, approvedAt: Date.now(), read: true });
+          })
+          .then(function () {
+            statusEl.textContent = 'Approved. Confirmation email (without ID card) sent to ' + (a.email || '') + '. Use the ID Card button beside this record to send the ID card in a separate email.';
+            showToast('Admission approved and confirmation email sent.');
+            setTimeout(function () { btn.disabled = false; btn.textContent = 'Confirm Approve & Send Confirmation Email'; document.getElementById('admission-approve-overlay').classList.remove('show'); }, 900);
+          })
+          .catch(function (err) {
+            statusEl.textContent = 'Approve failed: ' + (err && err.message ? err.message : err) + ' The record has NOT been marked Admitted, so you can retry.';
+            showToast('Approve failed. Please try again.', true);
+            btn.disabled = false; btn.textContent = 'Confirm Approve & Send Confirmation Email';
           });
-          return Promise.all([waitImgs, fontsReady()]).then(function () {
-            btn.textContent = 'Sending confirmation…';
-            return html2canvas(cardEl, { scale: 2 });
-          });
-        }).then(function (canvas) {
-          var png = canvas.toDataURL('image/png');
-          var payload = {
-            form_type: 'admission_approve',
-            student_name: a.student_name || '',
-            email: a.email || '',
-            course: a.course || '',
-            country: a.country || '',
-            student_id: studentId,
-            admission_date: admissionDate,
-            id_card_png_base64: png
-          };
-          return fetch(ADMISSIONS_ENDPOINT, { method: 'POST', redirect: 'follow', headers: { 'Accept': 'application/json' }, body: JSON.stringify(payload) })
-            .then(function (res) { if (!res.ok) throw new Error('Server responded with status ' + res.status); return res.json(); })
-            .then(function (result) {
-              if (!result || result.success !== true) throw new Error((result && (result.error || result.message)) || 'Apps Script did not confirm the approval. The record has NOT been marked Admitted.');
-              return update(ref(db, 'admissions/' + id), { status: 'Admitted', student_id: studentId, admission_date: admissionDate, approvedAt: Date.now(), read: true });
-            });
-        }).then(function () {
-          statusEl.textContent = 'Approved. Confirmation email with ID card sent to ' + (a.email || '') + '. Use the ID Card button beside this record to view, edit, download, or re-send the ID card.';
-          showToast('Admission approved and ID card sent.');
-          if (hidden) hidden.innerHTML = '';
-          // Reset the button as well as closing the overlay, so it is
-          // never left stuck on "Sending confirmation…" after success.
-          setTimeout(function () { btn.disabled = false; btn.textContent = 'Confirm Approve & Send Confirmation Email'; document.getElementById('admission-approve-overlay').classList.remove('show'); }, 900);
-        }).catch(function (err) {
-          statusEl.textContent = 'Approve failed: ' + (err && err.message ? err.message : err) + ' The record has NOT been marked Admitted, so you can retry.';
-          showToast('Approve failed. Please try again.', true);
-          btn.disabled = false; btn.textContent = 'Confirm Approve & Send Confirmation Email';
-        });
       });
     }
 
