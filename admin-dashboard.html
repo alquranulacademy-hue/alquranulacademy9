@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="assets/logo.png" type="image/png">
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/admin.css?v=20261026d">
+<link rel="stylesheet" href="css/admin.css?v=20261027a">
 <!-- ID card fonts (Sir's final frame): Playfair Display + Poppins, so the emailed PNG matches the approved design, not Georgia/Arial fallbacks. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,6 +40,8 @@
   </div>
 
   <div class="admin-shell">
+    <button class="admin-menu-btn" id="admin-menu-btn" type="button" aria-label="Open menu">&#9776; Menu</button>
+    <div class="admin-menu-backdrop" id="admin-menu-backdrop"></div>
     <nav class="admin-tabs">
       <button class="admin-tab-btn active" data-tab="bookings" type="button">Free Trial Bookings</button>
       <button class="admin-tab-btn" data-tab="contact-messages" type="button">Contact Messages</button>
@@ -130,6 +132,11 @@
             <option value="Contacted">Contacted</option>
             <option value="Admitted">Admitted</option>
             <option value="Cancelled">Cancelled</option>
+          </select>
+          <select id="admission-payment-filter" aria-label="Filter by payment">
+            <option value="">All payments</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
           </select>
           <button class="btn btn-outline-dark btn-sm" id="export-admissions-btn" type="button">Export CSV</button>
         </div>
@@ -338,6 +345,7 @@
 
   <script type="module" src="js/firebase.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="js/admin.js?v=20261026h" defer></script>
+  <script src="js/countries.js?v=20261026i" defer></script>
+  <script src="js/admin.js?v=20261027a" defer></script>
 </body>
 </html>

@@ -12,15 +12,27 @@
         ".write": "auth != null || !data.exists()"
       }
     },
+    "admissions": {
+      ".read": "auth != null",
+      "$admissionId": {
+        ".write": "auth != null || !data.exists()"
+      }
+    },
     "courses": {
       ".read": true,
       ".write": "auth != null",
-      ".indexOn": ["slug", "order"]
+      ".indexOn": [
+        "slug",
+        "order"
+      ]
     },
     "blogPosts": {
       ".read": true,
       ".write": "auth != null",
-      ".indexOn": ["slug", "timestamp"]
+      ".indexOn": [
+        "slug",
+        "timestamp"
+      ]
     },
     "notices": {
       ".read": true,

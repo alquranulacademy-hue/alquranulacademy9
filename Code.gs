@@ -112,11 +112,20 @@ function doPost(e) {
 
     var data = JSON.parse(e.postData.contents);
 
-    // Route Contact form submissions to their own handler, added below.
+    // Route Contact / Admission form submissions to their own handlers.
     // Everything from this point down is the original, unmodified
     // Free Trial flow — untouched.
     if (data.form_type === 'contact') {
       return handleContactSubmission(data);
+    }
+    if (data.form_type === 'admission') {
+      return handleAdmissionSubmission(data);
+    }
+    if (data.form_type === 'admission_approve') {
+      return handleAdmissionApprove(data);
+    }
+    if (data.form_type === 'admission_payment') {
+      return handleAdmissionPayment(data);
     }
 
     // Honeypot: if the hidden "_honey" field was filled in, it's a bot.
@@ -143,19 +152,22 @@ function doPost(e) {
     appendToSheet(data, timestamp, bookingId);
     sendNotificationEmail(data, timestamp, bookingId);
 
-    var skipFreeTrialAutoReply = hasRecentAutoReply(data.email);
-    console.log('Free Trial submission for ' + data.email + ' — auto-reply ' + (skipFreeTrialAutoReply ? 'SKIPPED (6-hour cooldown active)' : 'attempting now'));
-    if (!skipFreeTrialAutoReply) {
+    if (!data.email) {
+      logAutoReplyOutcome('Free Trial', data.email, 'INVALID_EMAIL');
+    } else if (hasRecentAutoReply(data.email, 'freetrial')) {
+      logAutoReplyOutcome('Free Trial', data.email, 'SKIPPED_COOLDOWN');
+    } else {
       try {
         sendFreeTrialAutoReply(data, timestamp);
-        markAutoReplySent(data.email);
-        console.log('Free Trial auto-reply SENT successfully to ' + data.email);
+        markAutoReplySent(data.email, 'freetrial');
+        logAutoReplyOutcome('Free Trial', data.email, 'SENT');
       } catch (autoReplyErr) {
         // The Sheet row and admin notification above already succeeded —
         // a problem sending the visitor's confirmation must never turn
         // that into an error response. Logged for the Executions log;
         // NOT marked as sent, so the visitor isn't locked out of a retry.
-        console.error('sendFreeTrialAutoReply failed: ' + (autoReplyErr.message || autoReplyErr) + ' | Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
+        logAutoReplyOutcome('Free Trial', data.email, 'SEND_FAILED',
+          (autoReplyErr.message || autoReplyErr) + ' | Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
       }
     }
 
@@ -457,20 +469,63 @@ function padBookingNumber(num) {
  * nothing AND be silently locked out of every retry for 6 hours, since
  * the cooldown had already been marked as used.
  *
+ * The cache key is namespaced per form (autoreply_freetrial_<email> vs
+ * autoreply_contact_<email>) rather than shared globally per email. This
+ * matters: testing the Contact form first and then the Free Trial form
+ * with the same address within 6 hours would otherwise have the Free
+ * Trial confirmation silently — and correctly, by the old logic —
+ * skipped by a cooldown that had nothing to do with Free Trial at all.
+ * That exact scenario (Contact confirmation received, Free Trial
+ * confirmation never arrives) is indistinguishable, from the visitor's
+ * side, from a genuine bug — this is the most likely explanation this
+ * code review can actually prove; it cannot be fully confirmed without
+ * checking the Apps Script Executions log for a SKIPPED_COOLDOWN line
+ * on the specific Free Trial attempt in question.
+ *
  * CacheService is a perfect fit here: entries expire on their own after
  * AUTO_REPLY_COOLDOWN_SECONDS (its own maximum is exactly 6 hours), so
  * there's nothing to clean up over time.
  */
-function hasRecentAutoReply(email) {
-  if (!email) return true; // no email to send to — treat as "already sent" so we never try
-  var cache = CacheService.getScriptCache();
-  return !!cache.get('autoreply_' + String(email).toLowerCase().trim());
+function autoReplyCacheKey(email, formType) {
+  return 'autoreply_' + String(formType || 'general').toLowerCase() + '_' + String(email).toLowerCase().trim();
 }
 
-function markAutoReplySent(email) {
+function hasRecentAutoReply(email, formType) {
+  if (!email) return true; // no email to send to — treat as "already sent" so we never try
+  var cache = CacheService.getScriptCache();
+  return !!cache.get(autoReplyCacheKey(email, formType));
+}
+
+function markAutoReplySent(email, formType) {
   if (!email) return;
   var cache = CacheService.getScriptCache();
-  cache.put('autoreply_' + String(email).toLowerCase().trim(), '1', AUTO_REPLY_COOLDOWN_SECONDS);
+  cache.put(autoReplyCacheKey(email, formType), '1', AUTO_REPLY_COOLDOWN_SECONDS);
+}
+
+/**
+ * Structured, filterable logging for every possible auto-reply outcome —
+ * one shared implementation used by both the Free Trial and Contact call
+ * sites in doPost()/handleContactSubmission() below, so the five outcome
+ * tags Step 7 requires are never duplicated or spelled two different ways:
+ *   AUTO_REPLY_SENT              — GmailApp.sendEmail() completed, cooldown marked
+ *   AUTO_REPLY_SKIPPED_COOLDOWN  — a valid recipient, but already sent one recently
+ *   AUTO_REPLY_INVALID_EMAIL     — no usable recipient (defensive; both callers
+ *                                  already reject empty/invalid email earlier in
+ *                                  validation, so this path is effectively
+ *                                  unreachable today — kept for correctness if
+ *                                  either function is ever called from elsewhere)
+ *   AUTO_REPLY_SEND_FAILED       — GmailApp.sendEmail() itself threw
+ *   AUTO_REPLY_EXCEPTION         — any other unexpected error building/sending
+ * Never throws, and never exposes any of this to the website visitor —
+ * this only ever writes to the Apps Script Executions log.
+ */
+function logAutoReplyOutcome(formLabel, email, outcome, detail) {
+  var line = '[AUTO_REPLY_' + outcome + '] ' + formLabel + ' — ' + (email || '(no email)') + (detail ? ' — ' + detail : '');
+  if (outcome === 'SEND_FAILED' || outcome === 'EXCEPTION') {
+    console.error(line);
+  } else {
+    console.log(line);
+  }
 }
 
 /**
@@ -643,19 +698,22 @@ function handleContactSubmission(data) {
 
   sendContactNotificationEmail(data, timestamp);
 
-  var skipContactAutoReply = hasRecentAutoReply(data.email);
-  console.log('Contact submission for ' + data.email + ' — auto-reply ' + (skipContactAutoReply ? 'SKIPPED (6-hour cooldown active)' : 'attempting now'));
-  if (!skipContactAutoReply) {
+  if (!data.email) {
+    logAutoReplyOutcome('Contact', data.email, 'INVALID_EMAIL');
+  } else if (hasRecentAutoReply(data.email, 'contact')) {
+    logAutoReplyOutcome('Contact', data.email, 'SKIPPED_COOLDOWN');
+  } else {
     try {
       sendContactAutoReply(data, timestamp);
-      markAutoReplySent(data.email);
-      console.log('Contact auto-reply SENT successfully to ' + data.email);
+      markAutoReplySent(data.email, 'contact');
+      logAutoReplyOutcome('Contact', data.email, 'SENT');
     } catch (autoReplyErr) {
       // The Sheet row and admin notification above already succeeded —
       // a problem sending the visitor's confirmation must never turn
       // that into an error response. Logged for the Executions log;
       // NOT marked as sent, so the visitor isn't locked out of a retry.
-      console.error('sendContactAutoReply failed: ' + (autoReplyErr.message || autoReplyErr) + ' | Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
+      logAutoReplyOutcome('Contact', data.email, 'SEND_FAILED',
+        (autoReplyErr.message || autoReplyErr) + ' | Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
     }
   }
 
@@ -825,4 +883,337 @@ function sendContactAutoReply(data, timestamp) {
     '\nWhatsApp: ' + WHATSAPP_URL;
 
   GmailApp.sendEmail(data.email, subject, plainBody, { htmlBody: htmlBody, name: SENDER_NAME, replyTo: NOTIFY_EMAIL });
+}
+
+// =====================================================================
+// ADMISSION FORM — same Web App, same Spreadsheet, same Gmail flow.
+// Admission applications go to their own "Admissions" sheet, the admin
+// gets a premium notification, and the student gets a thank-you
+// auto-reply in its OWN cooldown namespace ('admission'), worded as:
+// "application received, team will contact within 24 hours to confirm
+// enrolment" — so it can never be skipped by a Free Trial or Contact
+// cooldown for the same email address.
+// Photo rule (enforced here as well as in the browser): photo is
+// REQUIRED, except for female students aged 12+, for whom it is
+// optional. The photo itself is NOT emailed or stored in the Sheet —
+// it lives in the Firebase Admissions record, where the Admin
+// Dashboard renders this student's own ID card from it. No other
+// person's photo is ever reused for a card.
+// ADMISSION DATE = the date the admin approves, set in the dashboard
+// at Approve time, not the submission date. Student ID is likewise
+// assigned at Approve time in the dashboard.
+// =====================================================================
+
+var ADMISSIONS_SHEET_NAME = 'Admissions';
+var ADMISSIONS_SHEET_HEADERS = [
+  'Submission Date & Time',
+  'Student Name',
+  'Age',
+  'Gender',
+  'Country',
+  'Guardian Name',
+  'WhatsApp Number',
+  'Email',
+  'Course',
+  'Teacher Preference',
+  'Preferred Class Time',
+  'Message',
+  'Photo Provided',
+  'Status'
+];
+
+function handleAdmissionSubmission(data) {
+  if (data._honey) {
+    return jsonResponse({ success: true, message: 'Application received successfully.' });
+  }
+  var required = ['student_name', 'age', 'gender', 'country', 'whatsapp_number', 'email', 'course'];
+  for (var i = 0; i < required.length; i++) {
+    if (!data[required[i]] || String(data[required[i]]).trim() === '') {
+      return jsonResponse({ success: false, error: 'Missing required field: ' + required[i] });
+    }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    return jsonResponse({ success: false, error: 'Invalid email address.' });
+  }
+  var ageNum = parseInt(data.age, 10);
+  if (isNaN(ageNum) || ageNum < 3 || ageNum > 80) {
+    return jsonResponse({ success: false, error: 'Invalid age.' });
+  }
+  // Photo exemption only: female AND age 12+. Everyone else must provide a photo.
+  var photoExempt = (String(data.gender) === 'Female' && ageNum >= 12);
+  if (!photoExempt && !data.photo_data_url) {
+    return jsonResponse({ success: false, error: 'A student photo is required for the ID card, except for female students aged 12 and above.' });
+  }
+  var timestamp = new Date();
+  var sheetError = null;
+  try {
+    appendAdmissionToSheet(data, timestamp);
+  } catch (err) {
+    sheetError = err;
+    console.error('appendAdmissionToSheet failed: ' + (err.message || err));
+  }
+  sendAdmissionNotificationEmail(data, timestamp, photoExempt);
+  if (!data.email) {
+    logAutoReplyOutcome('Admission', data.email, 'INVALID_EMAIL');
+  } else if (hasRecentAutoReply(data.email, 'admission')) {
+    logAutoReplyOutcome('Admission', data.email, 'SKIPPED_COOLDOWN');
+  } else {
+    try {
+      sendAdmissionAutoReply(data, timestamp);
+      markAutoReplySent(data.email, 'admission');
+      logAutoReplyOutcome('Admission', data.email, 'SENT');
+    } catch (autoReplyErr) {
+      logAutoReplyOutcome('Admission', data.email, 'SEND_FAILED',
+        (autoReplyErr.message || autoReplyErr) + ' | Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
+    }
+  }
+  if (sheetError) {
+    return jsonResponse({ success: false, error: 'Application emailed, but saving to the sheet failed: ' + (sheetError.message || sheetError) });
+  }
+  return jsonResponse({ success: true, message: 'Thank you! Your application has been received, and our team will contact you within 24 hours to confirm enrolment.' });
+}
+
+function appendAdmissionToSheet(data, timestamp) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(ADMISSIONS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(ADMISSIONS_SHEET_NAME);
+    sheet.appendRow(ADMISSIONS_SHEET_HEADERS);
+    sheet.getRange(1, 1, 1, ADMISSIONS_SHEET_HEADERS.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  sheet.appendRow([
+    formatDate(timestamp),
+    data.student_name || '',
+    data.age || '',
+    data.gender || '',
+    data.country || '',
+    data.guardian_name || '',
+    data.whatsapp_number || '',
+    data.email || '',
+    data.course || '',
+    data.teacher_preference || 'No preference',
+    data.preferred_class_time || '',
+    data.message || '',
+    data.photo_provided || (data.photo_data_url ? 'Yes' : 'No'),
+    'Pending'
+  ]);
+}
+
+function sendAdmissionNotificationEmail(data, timestamp, photoExempt) {
+  var subject = 'New Admission Application | Al Quranul Academy';
+  var dateStr = formatDate(timestamp);
+  var sheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  var rows = [
+    ['Student Name', data.student_name],
+    ['Age', data.age],
+    ['Gender', data.gender],
+    ['Country', data.country],
+    ['Guardian Name', data.guardian_name || '—'],
+    ['WhatsApp Number', data.whatsapp_number],
+    ['Email', data.email],
+    ['Course', data.course],
+    ['Teacher Preference', data.teacher_preference || 'No preference'],
+    ['Preferred Class Time', data.preferred_class_time || 'Not specified'],
+    ['Message', data.message || '—'],
+    ['Photo Provided', data.photo_provided || (data.photo_data_url ? 'Yes' : 'No')],
+    ['Photo Note', photoExempt ? 'Female student aged 12+ — photo optional, not provided.' : 'Photo is in the Admin Dashboard Admissions tab (Firebase record).'],
+    ['Date', dateStr]
+  ];
+  var htmlBody = buildPremiumEmailHtml({
+    headerTitle: 'New Admission Application',
+    headerSubtitle: 'A student has applied for admission.',
+    rows: rows,
+    footerNote: 'Review this application in the Admin Dashboard Admissions tab. Approve there to assign a Student ID and Admission Date and send the ID card.',
+    replyTo: data.email,
+    sheetUrl: sheetUrl
+  });
+  var plainBody = 'New Admission Application — ' + SITE_NAME + '\n\n' +
+    rows.map(function (r) { return r[0] + ': ' + (r[1] || ''); }).join('\n') +
+    '\n\nOpen Google Sheet: ' + sheetUrl;
+  GmailApp.sendEmail(NOTIFY_EMAIL, subject, plainBody, { htmlBody: htmlBody, name: SENDER_NAME });
+}
+
+function sendAdmissionAutoReply(data, timestamp) {
+  var subject = 'Admission Application Received | Al Quranul Academy';
+  var rows = [
+    ['Student Name', data.student_name],
+    ['Age', data.age],
+    ['Gender', data.gender],
+    ['Country', data.country],
+    ['Course', data.course],
+    ['Email', data.email],
+    ['WhatsApp Number', data.whatsapp_number]
+  ];
+  var htmlBody = buildCustomerEmailHtml({
+    headerTitle: 'Admission Application Received',
+    headerSubtitle: 'Your application has been received successfully.',
+    greetingParagraphs: [
+      'Dear Parent / Guardian,',
+      'Thank you for choosing Al Quranul Academy.',
+      'Your admission application has been received, and our team will contact you within 24 hours to confirm enrolment.',
+      'Please keep your phone available so we can reach you promptly via WhatsApp or email.'
+    ],
+    rows: rows
+  });
+  var plainBody = 'Dear Parent / Guardian,\n\n' +
+    'Thank you for choosing Al Quranul Academy.\n' +
+    'Your admission application has been received, and our team will contact you within 24 hours to confirm enrolment.\n' +
+    'Please keep your phone available so we can reach you promptly via WhatsApp or email.\n\n' +
+    rows.map(function (r) { return r[0] + ': ' + (r[1] || ''); }).join('\n') +
+    '\n\nVisit Website: ' + SITE_URL +
+    '\nEmail: ' + NOTIFY_EMAIL +
+    '\nFacebook: ' + FACEBOOK_URL +
+    '\nWhatsApp: ' + WHATSAPP_URL;
+  GmailApp.sendEmail(data.email, subject, plainBody, { htmlBody: htmlBody, name: SENDER_NAME, replyTo: NOTIFY_EMAIL });
+}
+
+// =====================================================================
+// ADMISSION APPROVE — called ONLY from the Admin Dashboard, after the
+// admin has reviewed the ID card preview there. The dashboard generates
+// the ID card PNG in the admin's browser (final ID-card theme, this
+// student's own photo, or logo/initials when no photo was provided
+// under the female-12+ exemption) and posts it here as base64.
+// Apps Script decodes it and attaches it to the confirmation email —
+// Apps Script itself never renders HTML to PNG, and never reuses
+// another student's photo. Admission Date and Student ID arrive from
+// the dashboard (approval date, assigned at Approve time).
+// =====================================================================
+
+function handleAdmissionApprove(data) {
+  var required = ['student_name', 'email', 'student_id', 'admission_date'];
+  for (var i = 0; i < required.length; i++) {
+    if (!data[required[i]] || String(data[required[i]]).trim() === '') {
+      return jsonResponse({ success: false, error: 'Missing required field: ' + required[i] });
+    }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    return jsonResponse({ success: false, error: 'Invalid email address.' });
+  }
+  // Sir's correction 2026-10-26: the ID card goes ONLY in a second,
+  // separate email (ID Card menu -> Send ID Card by Email). The
+  // Approve email is congratulations ONLY, with NO attachment. The
+  // branch is the presence of id_card_png_base64: Approve posts NO
+  // PNG, so it takes the congratulations branch; the ID Card menu
+  // posts the PNG, so it takes the ID-card branch (own subject and
+  // wording, with attachment). Never claim an attachment that is
+  // not in the email.
+  var hasIdCard = !!data.id_card_png_base64;
+  var subject = hasIdCard
+    ? 'Your Student ID Card | Al Quranul Academy'
+    : 'Admission Confirmed | Al Quranul Academy';
+  // Admission-fee payment line (Sir, 2026-10-27): only when the caller
+  // sends an EXPLICIT payment_status. The old production dashboard
+  // sends no such field, so production approve emails stay unchanged
+  // (no payment line) until the production dashboard is updated too.
+  // 'paid' -> payment-complete line; 'unpaid' -> fee-pending line only
+  // (Sir's correction: NEVER the "classes start after payment" line).
+  var paymentStatus = (data.payment_status === 'paid' || data.payment_status === 'unpaid') ? data.payment_status : '';
+  var paymentLine = paymentStatus === 'paid'
+    ? 'Your admission fee payment is complete. You are now officially a student of Al Quranul Academy.'
+    : (paymentStatus === 'unpaid'
+      ? 'Please note: your admission fee is still pending. Our team will contact you regarding the payment.'
+      : '');
+  var rows = [
+    ['Student Name', data.student_name],
+    ['Course', data.course || '—'],
+    ['Student ID', data.student_id],
+    ['Admission Date', data.admission_date],
+    ['Country', data.country || '—']
+  ];
+  if (!hasIdCard && paymentStatus) rows.push(['Payment Status', paymentStatus === 'paid' ? 'Paid' : 'Payment Pending']);
+  // Sir's second correction 2026-10-26: the second (ID card) email
+  // must NOT repeat the admission-confirmed / congratulations
+  // message. It is simply the academy sending the ID card.
+  var greetingParagraphs = hasIdCard
+    ? [
+      'Dear Parent / Guardian,',
+      'Al Quranul Academy has sent your student ID card — it is attached to this email.',
+      'Please keep it safe and show it at the start of classes.',
+      'Student details are below.'
+    ]
+    : [
+      'Dear Parent / Guardian,',
+      'Congratulations — your admission to Al Quranul Academy is confirmed.',
+      'Your student ID card will be sent to you in a separate email.',
+      'Our team will contact you shortly to confirm your class schedule.'
+    ].concat(paymentLine ? [paymentLine] : []);
+  var htmlBody = buildCustomerEmailHtml({
+    headerTitle: hasIdCard ? 'Your Student ID Card' : 'Admission Confirmed',
+    headerSubtitle: hasIdCard ? 'Your student ID card from Al Quranul Academy.' : 'Welcome to Al Quranul Academy.',
+    greetingParagraphs: greetingParagraphs,
+    rows: rows
+  });
+  var plainBody = 'Dear Parent / Guardian,\n\n' +
+    (hasIdCard
+      ? 'Al Quranul Academy has sent your student ID card — it is attached to this email. Please keep it safe and show it at the start of classes.\n'
+      : 'Congratulations — your admission to Al Quranul Academy is confirmed.\n' +
+        'Your student ID card will be sent to you in a separate email.\n' +
+        'Our team will contact you shortly to confirm your class schedule.\n' +
+        (paymentLine ? paymentLine + '\n' : '')) +
+    '\n' +
+    rows.map(function (r) { return r[0] + ': ' + (r[1] || ''); }).join('\n') +
+    '\n\nVisit Website: ' + SITE_URL +
+    '\nEmail: ' + NOTIFY_EMAIL;
+  var options = { htmlBody: htmlBody, name: SENDER_NAME, replyTo: NOTIFY_EMAIL };
+  var attachmentNote = 'No ID card PNG was provided with this approval — email sent without attachment.';
+  if (data.id_card_png_base64) {
+    try {
+      var b64 = String(data.id_card_png_base64).replace(/^data:image\/png;base64,/, '');
+      var blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/png', 'Al-Quranul-Academy-ID-Card-' + String(data.student_id).replace(/[^A-Za-z0-9-]/g, '') + '.png');
+      options.attachments = [blob];
+      attachmentNote = 'ID card PNG attached.';
+    } catch (attachErr) {
+      console.error('ID card attachment failed: ' + (attachErr.message || attachErr));
+      attachmentNote = 'ID card PNG could not be decoded — email sent without attachment.';
+    }
+  }
+  GmailApp.sendEmail(data.email, subject, plainBody, options);
+  console.log('[ADMISSION_APPROVED] ' + data.student_name + ' — ' + data.student_id + ' — ' + data.admission_date + ' — ' + attachmentNote);
+  return jsonResponse({ success: true, message: 'Admission confirmation sent.', attachment: attachmentNote });
+}
+
+/**
+ * Admission-fee payment email (Sir, 2026-10-27). Posted ONLY from the
+ * dashboard when Sir marks an already-Admitted record Paid after an
+ * unpaid approval. It is a payment-only email: it must NOT repeat the
+ * congratulations / admission-confirmed message (the student already
+ * got that at approval). Marking Paid on a still-Pending record sends
+ * NO email at all — the approve email carries the payment line then.
+ */
+function handleAdmissionPayment(data) {
+  var required = ['student_name', 'email', 'student_id'];
+  for (var i = 0; i < required.length; i++) {
+    if (!data[required[i]] || String(data[required[i]]).trim() === '') {
+      return jsonResponse({ success: false, error: 'Missing required field: ' + required[i] });
+    }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    return jsonResponse({ success: false, error: 'Invalid email address.' });
+  }
+  var rows = [
+    ['Student Name', data.student_name],
+    ['Course', data.course || '—'],
+    ['Student ID', data.student_id],
+    ['Payment Status', 'Paid']
+  ];
+  var greetingParagraphs = [
+    'Dear Parent / Guardian,',
+    'Your admission fee payment is now complete. Thank you.',
+    'Student details are below.'
+  ];
+  var htmlBody = buildCustomerEmailHtml({
+    headerTitle: 'Admission Fee Payment Complete',
+    headerSubtitle: 'Your admission fee payment is complete.',
+    greetingParagraphs: greetingParagraphs,
+    rows: rows
+  });
+  var plainBody = 'Dear Parent / Guardian,\n\n' +
+    'Your admission fee payment is now complete. Thank you.\n\n' +
+    rows.map(function (r) { return r[0] + ': ' + (r[1] || ''); }).join('\n') +
+    '\n\nVisit Website: ' + SITE_URL +
+    '\nEmail: ' + NOTIFY_EMAIL;
+  GmailApp.sendEmail(data.email, 'Admission Fee Payment Complete | Al Quranul Academy', plainBody, { htmlBody: htmlBody, name: SENDER_NAME, replyTo: NOTIFY_EMAIL });
+  console.log('[ADMISSION_PAYMENT] ' + data.student_name + ' — ' + data.student_id + ' — Paid');
+  return jsonResponse({ success: true, message: 'Admission fee payment email sent.' });
 }
