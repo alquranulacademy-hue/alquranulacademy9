@@ -264,7 +264,14 @@ table.admin-table{
 .cell-nowrap{white-space:nowrap;}
 .cell-wrap{word-break:break-word;overflow-wrap:anywhere;}
 @media (max-width:640px){
-  .admin-table{font-size:13px;min-width:480px;}
+  /* ROOT-CAUSE FIX (Sir, 2026-10-26): the base rule above is
+     `table.admin-table` (min-width:560px) and it BEATS any plain
+     `.admin-table` rule by specificity — so every earlier mobile
+     "min-width:0" fix was silently ignored and every card stayed
+     560px wide on a ~375px phone. That is why buttons ran off the
+     right edge and the page scrolled sideways. This rule uses the
+     same `table.admin-table` selector, so it really wins. */
+  table.admin-table{font-size:13px;min-width:0;}
   .admin-table th, .admin-table td{padding:10px 12px;}
 }
 .admin-table tr:hover td{background:var(--emerald-50);}
@@ -300,6 +307,8 @@ table.admin-table{
 .status-Contacted{background:#DDEBFB;color:#1E5A96;}
 .status-Admitted{background:var(--emerald-100);color:var(--emerald-800);}
 .status-Cancelled{background:#FBEAEA;color:#9B2C2C;}
+.pay-paid{background:var(--emerald-100);color:var(--emerald-800);}
+.pay-unpaid{background:#FBEAEA;color:#9B2C2C;}
 
 .pub-yes{background:var(--emerald-100);color:var(--emerald-800);}
 .pub-no,
@@ -678,6 +687,7 @@ tr.msg-archived{opacity:.6;}
   .admin-shell, .admin-main, .admin-panel, .admin-table-wrap, .admin-table, .admin-table tr{max-width:100%;}
   .admin-table-wrap{max-height:none;overflow:visible;background:transparent;box-shadow:none;border-radius:0;}
   .admin-table, .admin-table tbody, .admin-table tr, .admin-table td{display:block;width:100%;}
+  table.admin-table{min-width:0;width:100%;}
   .admin-table td{min-width:0;max-width:100%;overflow-wrap:anywhere;}
   .admin-table td.cell-nowrap{white-space:normal;}
   .admin-table td > *{min-width:0;max-width:100%;}
@@ -707,4 +717,85 @@ tr.msg-archived{opacity:.6;}
 @media (max-width:380px){
   .admin-shell{padding:14px 12px;}
   .admin-topbar-brand span{font-size:14px;}
+}
+
+/* ---------- Searchable country dropdown in ID Card menu (Sir, 2026-10-26) ---------- */
+.country-dropdown{display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #ccc;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:50;}
+.country-dropdown.open{display:block;}
+.country-dropdown .country-option{display:block;width:100%;text-align:left;padding:10px 14px;border:0;background:#fff;cursor:pointer;font-size:15px;}
+.country-dropdown .country-option:hover,.country-dropdown .country-option.active{background:#eef6ee;}
+.country-dropdown .country-empty{padding:10px 14px;color:#666;font-size:14px;}
+
+/* ---------- Mobile dashboard rebuild (Sir, 2026-10-26, items 2/3/4) ----------
+   Sir's phone screenshots (15:13) proved the earlier mobile fixes did
+   NOT work on production: (2) every card's action buttons ran off the
+   right edge, (3) the Admissions page was shifted sideways with the
+   left side cut off, (4) detail/ID-card overlays did not cover the
+   list behind them. Root causes found by reading the deployed CSS:
+   (a) `table.admin-table{min-width:560px}` beat every mobile
+   `.admin-table{min-width:0}` rule by specificity, so cards stayed
+   560px wide on phones (fixed above with the same selector);
+   (b) overlays were semi-transparent sheets whose panel could end
+   above the viewport bottom, leaving the dimmed list visible;
+   (c) nothing clipped horizontal overflow at the page level, so one
+   wide element shifted the whole page. The rules below are the
+   rebuild: on phones the dashboard is strictly viewport-wide, and
+   every overlay is a true opaque full-screen sheet. */
+@media (max-width:900px){
+  .admin-body{overflow-x:hidden;}
+  .admin-shell, .admin-main, .admin-panel, .admin-table-wrap{max-width:100%;min-width:0;overflow-x:clip;}
+  .admin-tabs{max-width:100%;min-width:0;overflow-x:auto;}
+  .admin-topbar{max-width:100%;}
+  .admin-item-card{max-width:100%;}
+}
+@media (max-width:640px){
+  /* Strict viewport width: no dashboard element may exceed the phone. */
+  .admin-shell{overflow-x:clip;}
+  .admin-panel{overflow-x:clip;}
+  table.admin-table, .admin-table tbody, .admin-table tr, .admin-table td{max-width:100%;min-width:0;}
+  .admin-table tr{margin-left:0;margin-right:0;}
+  .admin-table td[data-label="Actions"]{max-width:100%;}
+  .admin-table td[data-label="Actions"] .action-btns{width:100%;max-width:100%;}
+  .admin-table td[data-label="Actions"] .btn{width:100%;max-width:100%;}
+  .admin-item-actions{width:100%;max-width:100%;}
+  .admin-toolbar{max-width:100%;}
+  .admin-toolbar input[type="text"], .admin-toolbar input[type="search"], .admin-toolbar select{max-width:100%;}
+  .admin-panel-head .btn{max-width:100%;}
+  /* True full-screen overlay sheet on phones: opaque, viewport-sized,
+     its own scroll — the list behind can neither show through nor
+     scroll. Body scroll is locked by JS while any overlay is open. */
+  .admin-form-overlay{position:fixed;inset:0;width:100vw;height:100dvh;padding:0;align-items:stretch;overflow-y:auto;background:rgba(11,61,38,0.45);}
+  .admin-form-overlay .admin-form-panel, .admin-form-overlay .detail-panel{width:100%;max-width:none;min-height:100dvh;margin:0;border-radius:0;transform:none;overflow-x:hidden;}
+  .admin-form-panel .detail-list, #id-card-body{max-width:100%;}
+  #id-card-preview-wrap{width:100%;max-width:100%;overflow:hidden;}
+  /* NOTIFICATION FIX (Sir, 2026-10-26): on desktop the bell sits at
+     the RIGHT of the topbar, so `right:0` drops the menu below it.
+     On phones the bell wraps to the LEFT, so `right:0` with a 340px
+     width pushed the whole dropdown off-screen to the left — the
+     tap looked dead. On phones anchor it to the bell's left edge
+     and give it the full phone width instead. (Note: left/right
+     here are relative to the small .notif-wrap, so left:16px +
+     right:16px would have made a 6px-wide menu — that earlier
+     draft rule is replaced by this one.) */
+  .notif-dropdown{left:0;right:auto;width:calc(100vw - 32px);max-width:none;}
+}
+
+/* ---------- Dashboard menu drawer (Sir, 2026-10-26) ----------
+   On phones the section tabs (Free Trial Bookings, Contact
+   Messages, Admissions, Courses, Blog Posts, Notices) were a
+   horizontal strip to drag through. Like the public site's mobile
+   menu, the dashboard now gets a ☰ Menu button on phones/tablets
+   that opens a side drawer with the same sections; tapping one
+   switches to it and closes the drawer. Desktop is unchanged:
+   the tab column stays visible and the button stays hidden. */
+.admin-menu-btn{display:none;}
+.admin-menu-backdrop{display:none;}
+@media (max-width:900px){
+  .admin-menu-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:100px;border:2px solid rgba(11,61,38,0.25);background:var(--white);color:var(--emerald-800);font-weight:700;font-size:14px;cursor:pointer;align-self:flex-start;}
+  .admin-menu-backdrop{position:fixed;inset:0;background:rgba(11,61,38,0.45);z-index:1000;}
+  body.admin-menu-open .admin-menu-backdrop{display:block;}
+  body.admin-menu-open{overflow:hidden;}
+  .admin-tabs{position:fixed;top:0;left:0;bottom:0;width:280px;max-width:82vw;height:100dvh;flex-direction:column;overflow-y:auto;overflow-x:hidden;border-radius:0;z-index:1001;transform:translateX(-100%);visibility:hidden;transition:transform .25s ease, visibility 0s linear .25s;}
+  body.admin-menu-open .admin-tabs{transform:translateX(0);visibility:visible;transition:transform .25s ease, visibility 0s linear;}
+  .admin-tabs .admin-tab-btn{width:100%;text-align:left;white-space:normal;min-height:48px;}
 }

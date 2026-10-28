@@ -4,6 +4,7 @@
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@400;600;700;900&display=swap');
 
 :root{
   --emerald-950:#0A2E1E;
@@ -209,7 +210,7 @@ button{font-family:inherit;cursor:pointer;}
 .nav-links{
   display:flex;
   align-items:center;
-  gap:30px;
+  gap:20px;
 }
 .nav-links a{
   font-size:14.5px;
@@ -218,6 +219,7 @@ button{font-family:inherit;cursor:pointer;}
   position:relative;
   padding:6px 0;
   transition:color .2s ease;
+  white-space:nowrap;
 }
 .nav-links a::after{
   content:'';
@@ -270,7 +272,7 @@ body.nav-open .nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45d
 body.nav-open .nav-toggle span:nth-child(2){opacity:0;}
 body.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
 
-@media (max-width: 900px){
+@media (max-width: 1200px){
   .nav-links, .nav-cta .btn-primary{display:none;}
   .nav-toggle{display:flex;}
 }
@@ -397,9 +399,10 @@ body.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-4
 /* ---------- Footer ---------- */
 .site-footer{
   background:var(--emerald-950);
-  color:rgba(255,255,255,0.75);
+  color:rgba(255,255,255,0.85);
   padding:64px 0 26px;
 }
+.site-footer p{color:rgba(255,255,255,0.88);}
 .footer-grid{
   display:grid;
   grid-template-columns:1.6fr 1fr 1fr 1.2fr;
@@ -421,7 +424,7 @@ body.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-4
   display:block;
   padding:6px 0;
   font-size:14.5px;
-  color:rgba(255,255,255,0.72);
+  color:rgba(255,255,255,0.88);
   transition:color .2s ease;
 }
 .site-footer a:hover{color:var(--gold-400);}
@@ -438,12 +441,13 @@ body.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-4
 .social-row a{
   width:38px;height:38px;
   border-radius:50%;
-  background:rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.14);
   display:flex;align-items:center;justify-content:center;
   padding:0;
 }
 .social-row a:hover{background:var(--gold-600);color:var(--emerald-950);}
-.social-row svg{width:17px;height:17px;}
+.social-row svg{width:17px;height:17px;fill:#fff;}
+.social-row a:hover svg{fill:var(--emerald-950);}
 
 /* ---------- WhatsApp float ---------- */
 .wa-float{
@@ -807,3 +811,33 @@ body.nav-open .nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-4
   .wa-float{animation:none;}
   html{scroll-behavior:auto;}
 }
+
+/* ---------- Searchable country dropdown (Sir, 2026-10-26) ---------- */
+.country-dropdown{display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;max-height:240px;overflow-y:auto;background:#fff;border:1.5px solid rgba(11,61,38,0.25);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:50;}
+.country-dropdown.open{display:block;}
+.country-dropdown .country-option{display:block;width:100%;text-align:left;padding:10px 14px;border:0;background:#fff;cursor:pointer;font-size:14.5px;color:var(--ink);}
+.country-dropdown .country-option:hover,.country-dropdown .country-option.active{background:#eef6ee;}
+.country-dropdown .country-empty{padding:10px 14px;color:#666;font-size:14px;}
+
+/* ---------- Spam-folder note (Sir, 2026-10-26) ---------- */
+.spam-note{font-size:13px;line-height:1.6;color:var(--ink-faint);text-align:center;margin:14px 0 0;}
+
+/* ---------- Language toggle EN | বাংলা (Sir, 2026-10-26) ---------- */
+.lang-toggle{display:inline-flex;gap:2px;align-items:center;background:#eef4ee;border:1px solid #cfe3d2;border-radius:999px;padding:2px;}
+.lang-toggle button{border:0;background:transparent;padding:6px 10px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;color:var(--emerald-800);line-height:1;}
+.lang-toggle button.active{background:var(--emerald-700);color:#fff;}
+.mobile-panel .lang-toggle{margin:0 auto 10px;}
+
+/* ---------- Bengali mode fonts (Sir, 2026-10-26) ----------
+   The site fonts (Fraunces / Plus Jakarta Sans) have no Bengali glyphs,
+   so Bengali fell back to the phone system font and looked broken, and
+   letter-spacing on eyebrows/footer headings breaks Bengali conjuncts.
+   In Bengali mode only: Hind Siliguri for body, Noto Serif Bengali for
+   headings (serif, like the headline Sir liked), no letter-spacing or
+   uppercase on Bengali text. English mode is untouched. */
+html[lang="bn"] body{font-family:'Hind Siliguri','Plus Jakarta Sans',sans-serif;}
+html[lang="bn"] h1, html[lang="bn"] h2, html[lang="bn"] h3, html[lang="bn"] h4{font-family:'Noto Serif Bengali',serif;line-height:1.35;}
+html[lang="bn"] p{line-height:1.9;}
+html[lang="bn"] .eyebrow, html[lang="bn"] .site-footer h4{letter-spacing:0;text-transform:none;font-family:'Hind Siliguri',sans-serif;}
+html[lang="bn"] .brand span, html[lang="bn"] .footer-brand span{font-family:'Noto Serif Bengali',serif;}
+html[lang="bn"] button, html[lang="bn"] input, html[lang="bn"] textarea, html[lang="bn"] select{font-family:'Hind Siliguri',sans-serif;}
