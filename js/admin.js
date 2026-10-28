@@ -288,7 +288,27 @@
         document.querySelectorAll('.admin-panel').forEach(function (p) { p.classList.remove('active'); });
         btn.classList.add('active');
         document.getElementById('panel-' + btn.getAttribute('data-tab')).classList.add('active');
+        // Mobile menu drawer: picking a section closes the drawer.
+        document.body.classList.remove('admin-menu-open');
       });
+    });
+    // Mobile menu drawer (Sir, 2026-10-26): ☰ Menu opens the side
+    // drawer, backdrop tap or Escape closes it. On desktop the
+    // button is hidden by CSS, so this is a no-op there.
+    var menuBtn = document.getElementById('admin-menu-btn');
+    var menuBackdrop = document.getElementById('admin-menu-backdrop');
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function () {
+        document.body.classList.toggle('admin-menu-open');
+      });
+    }
+    if (menuBackdrop) {
+      menuBackdrop.addEventListener('click', function () {
+        document.body.classList.remove('admin-menu-open');
+      });
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') document.body.classList.remove('admin-menu-open');
     });
   }
 
@@ -310,6 +330,20 @@
         overlay.classList.remove('show');
       });
     });
+    // Mobile overlay scroll lock (Sir, 2026-10-26, item 4): while ANY
+    // dashboard overlay is open, the page behind must not scroll or
+    // show through — the overlay is the only scrollable sheet. This
+    // watches every overlay's class, so it covers detail, approve,
+    // ID-card and form overlays without touching their open code.
+    if (typeof MutationObserver === 'function') {
+      var syncBodyLock = function () {
+        document.body.style.overflow = document.querySelector('.admin-form-overlay.show') ? 'hidden' : '';
+      };
+      var lockObserver = new MutationObserver(syncBodyLock);
+      document.querySelectorAll('.admin-form-overlay').forEach(function (overlay) {
+        lockObserver.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+      });
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -764,10 +798,22 @@
   var ADMISSIONS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwtFpH8MFgxfNEqe2fCuQopJVC2kKAA3FWCmbrf-1iEXfd14YXGxVOJe2oGhNPHXzkx/exec';
   var LINKS_QR_B64 = "iVBORw0KGgoAAAANSUhEUgAAAzQAAAM0AQAAAABFCVraAAADPUlEQVR42u3dQY4UMQwF0IgL5P63rBsUEiPUie1ELGCkhFcLxEBNvUUv6rcTO+39lutpHA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+Fw/genxat/3THd0uf7plvqB3w5P9r3XBwOh8PhcP7CFV7+VRb4lQDGv/Xif3v9APmAw+FwOJzz88Hnm3+KAe8YCD6pYP8A+YDD4XA4nOvywVgcmG4eVxVymJAPOBwOh8O5Px/kfxs3HMgHHA6Hw+HcnQ/Sj1P9YHrlt7iH0v4DDofD4XAuzAfh6sXiwf6P/AD5gMPhcDico/PBqgPy933P2MkQVhBC6SA/xefD4XA4HM6h+SC3MaauhUVmSCsN8ck+Hw6Hw+FwjswHn7pAqBVs2hTafEtbjUOQDzgcDofDOb1+UA0/qjLDWD946jlK8gGHw+FwONfUD3arBamd4UmJIq05yAccDofD4RycD9Jo5arTMS4ezFWDJh9wOBwOh3NRPqje+72eqlz3LzzzwoN8wOFwOBzOZflgeTjjZr5yq9sZ5AMOh8PhcE7NB/XhCq1YgqjmK3+elw9ukg84HA6Hwzk6H4zv+OnlnyYtt9TdUM9hlg84HA6Hwzk4H6Q9BIsmhuWCQt0WKR9wOBwOh3N0/SBMTQxTD3radZC6G0LFQf2Aw+FwOJzz88G7iQbV1INqdkJYbpAPOBwOh8O5Jh+0sRpQ705YNjQ+VWXC58PhcDgczpH5IFQN0kEKT3GIY0v7D6olCPmAw+FwOJxr6gdhHMKf1RSsL3A4HA6Hc1c+eNIxzvv5SGGTYl1OkA84HA6Hwzk4Hyy//udpBuPvLh8qH3A4HA6Hc0P94N0e3bgbcxDWIcxX5nA4HA7nmvpBuPJcg3RWY0+bFaoDouUDDofD4XDOzQc9DUGo1xxCf2NYjAgBQz7gcDgcDuf0fBCqAZvBSYutB3UlQT7gcDgcDueefFCf27zsZcwHO8oHHA6Hw+HcmQ/Scc9xuMH8POc7czgcDodzWT6o9x+01RCEt9iz2PQ3cjgcDodzUT4IVy+6GnMTQ3WL+gGHw+FwOJfkg395PRwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcO51fgKBQuafmYfPuAAAAABJRU5ErkJggg==";
 
+  // Admission-fee payment status (Sir, 2026-10-27): a record is Paid
+  // ONLY when Sir explicitly marked it Paid; every other record —
+  // including all old records without this field — counts as Unpaid.
+  // No amount field, by Sir's decision: Paid/Unpaid only.
+  function paymentStatusOf(a) { return (a && a.payment_status === 'paid') ? 'paid' : 'unpaid'; }
+  function paymentBadgeHtml(a) {
+    return paymentStatusOf(a) === 'paid'
+      ? '<span class="status-badge pay-paid">Paid</span>'
+      : '<span class="status-badge pay-unpaid">Unpaid</span>';
+  }
+
   function initAdmissions() {
     var tbody = document.getElementById('admissions-tbody');
     var searchInput = document.getElementById('admission-search');
     var statusFilter = document.getElementById('admission-status-filter');
+    var paymentFilter = document.getElementById('admission-payment-filter');
     var exportBtn = document.getElementById('export-admissions-btn');
     if (!tbody) return;
 
@@ -782,8 +828,10 @@
     function filteredAdmissions() {
       var term = (searchInput.value || '').toLowerCase().trim();
       var status = statusFilter.value;
+      var payment = paymentFilter ? paymentFilter.value : '';
       return admissionsCache.filter(function (a) {
         if (status && a.status !== status) return false;
+        if (payment && paymentStatusOf(a) !== payment) return false;
         if (!term) return true;
         var haystack = [a.student_name, a.email, a.whatsapp_number, a.country, a.course, a.student_id].join(' ').toLowerCase();
         return haystack.indexOf(term) !== -1;
@@ -804,7 +852,7 @@
           '<td class="cell-nowrap" data-label="Date">' + unreadDotHtml(isUnread) + escapeHtml(dateStr) + '</td>' +
           '<td data-label="Student">' + escapeHtml(a.student_name) + (a.student_id ? '<br><small>' + escapeHtml(a.student_id) + '</small>' : '') + '</td>' +
           '<td data-label="Course">' + escapeHtml(a.course) + '</td>' +
-          '<td data-label="Status"><span class="status-badge status-' + safeStatus + '">' + escapeHtml(safeStatus) + '</span></td>' +
+          '<td data-label="Status"><span class="status-badge status-' + safeStatus + '">' + escapeHtml(safeStatus) + '</span><br>' + paymentBadgeHtml(a) + '</td>' +
           '<td data-label="Actions"><div class="action-btns">' +
             '<button class="btn btn-outline-dark btn-sm" data-view-admission="' + a.id + '" type="button">View Details</button>' +
             (safeStatus !== 'Admitted' ? '<button class="btn btn-primary btn-sm" data-approve-admission="' + a.id + '" type="button">Approve</button>' : '<button class="btn btn-primary btn-sm" data-id-card-admission="' + a.id + '" type="button">ID Card</button>') +
@@ -840,14 +888,15 @@
 
     searchInput.addEventListener('input', renderAdmissions);
     statusFilter.addEventListener('change', renderAdmissions);
+    if (paymentFilter) paymentFilter.addEventListener('change', renderAdmissions);
 
     exportBtn.addEventListener('click', function () {
       var rows = filteredAdmissions();
       if (!rows.length) { showToast('No admissions to export.', true); return; }
-      var headers = ['Date', 'Student Name', 'Age', 'Gender', 'Country', 'Guardian', 'WhatsApp', 'Email', 'Course', 'Teacher Preference', 'Preferred Class Time', 'Message', 'Photo Provided', 'Student ID', 'Admission Date', 'Status'];
+      var headers = ['Date', 'Student Name', 'Age', 'Gender', 'Country', 'Guardian', 'WhatsApp', 'Email', 'Course', 'Teacher Preference', 'Preferred Class Time', 'Message', 'Photo Provided', 'Student ID', 'Admission Date', 'Status', 'Payment Status'];
       var csvRows = [headers.join(',')];
       rows.forEach(function (a) {
-        var line = [a.createdAt ? new Date(a.createdAt).toISOString() : '', a.student_name, a.age, a.gender, a.country, a.guardian_name, a.whatsapp_number, a.email, a.course, a.teacher_preference, a.preferred_class_time, a.message, a.photo_provided, a.student_id, a.admission_date, a.status]
+        var line = [a.createdAt ? new Date(a.createdAt).toISOString() : '', a.student_name, a.age, a.gender, a.country, a.guardian_name, a.whatsapp_number, a.email, a.course, a.teacher_preference, a.preferred_class_time, a.message, a.photo_provided, a.student_id, a.admission_date, a.status, paymentStatusOf(a) === 'paid' ? 'Paid' : 'Unpaid']
           .map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(',');
         csvRows.push(line);
       });
@@ -882,11 +931,15 @@
         buildDetailField({ iconKey: 'clock', label: 'Preferred Class Time', value: a.preferred_class_time }),
         buildDetailField({ iconKey: 'message', label: 'Message', value: a.message }),
         buildDetailField({ iconKey: 'id', label: 'Student ID', value: a.student_id }),
-        buildDetailField({ iconKey: 'calendar', label: 'Admission Date', value: a.admission_date })
+        buildDetailField({ iconKey: 'calendar', label: 'Admission Date', value: a.admission_date }),
+        buildDetailField({ iconKey: 'id', label: 'Payment Status', value: paymentStatusOf(a) === 'paid' ? 'Paid' : 'Unpaid' })
       ].join('');
       var actionsHtml = '<div class="detail-actions">' +
         (a.status !== 'Admitted' ? '<button class="btn btn-primary btn-sm" type="button" data-detail-approve="' + a.id + '">Approve</button>' : '<button class="btn btn-primary btn-sm" type="button" data-detail-id-card="' + a.id + '">ID Card</button>') +
-        '</div>';
+        (paymentStatusOf(a) === 'paid'
+          ? '<button class="btn btn-outline-dark btn-sm" type="button" data-detail-unpaid="' + a.id + '">Mark Unpaid</button>'
+          : '<button class="btn btn-primary btn-sm" type="button" data-detail-paid="' + a.id + '">Mark Paid</button>') +
+        '<span id="admission-payment-status" class="small" style="margin-left:8px;"></span></div>';
       var body = document.getElementById('admission-detail-body');
       body.innerHTML = headerHtml + '<div class="detail-list">' + fieldsHtml + '</div>' +
         '<div style="margin-top:16px;"><strong>Student Photo</strong><br>' + photoHtml + '</div>' + actionsHtml;
@@ -895,6 +948,10 @@
       if (approveBtn) approveBtn.addEventListener('click', function () { openAdmissionApprove(id); });
       var idCardBtn = body.querySelector('[data-detail-id-card]');
       if (idCardBtn) idCardBtn.addEventListener('click', function () { openIdCardMenu(id); });
+      var paidBtn = body.querySelector('[data-detail-paid]');
+      if (paidBtn) paidBtn.addEventListener('click', function () { setAdmissionPayment(id, true); });
+      var unpaidBtn = body.querySelector('[data-detail-unpaid]');
+      if (unpaidBtn) unpaidBtn.addEventListener('click', function () { setAdmissionPayment(id, false); });
       document.getElementById('admission-detail-overlay').classList.add('show');
     }
 
@@ -1006,6 +1063,50 @@
       '</div>';
     }
 
+    /* ---- Admission-fee payment toggle (Sir, 2026-10-27). Paid/Unpaid
+       only — no amount field, by Sir's decision. ID Card is NOT gated
+       on payment (Sir: unpaid students get ID cards too), so this
+       function touches nothing but payment_status. Mark Paid on an
+       Admitted record sends the payment-complete email via Apps
+       Script (form_type='admission_payment') BEFORE the RTDB write,
+       so a failed email leaves the record Unpaid and retryable;
+       Mark Paid on a Pending record only writes RTDB (the approve
+       email will carry the payment line); Mark Unpaid never emails. */
+    function setAdmissionPayment(id, paid) {
+      var a = admissionsCache.find(function (x) { return x.id === id; });
+      if (!a) return;
+      var statusEl = document.getElementById('admission-payment-status');
+      function writePaid() {
+        return update(ref(db, 'admissions/' + id), { payment_status: 'paid', paidAt: Date.now() })
+          .then(function () { if (statusEl) statusEl.textContent = 'Marked Paid.'; showToast('Marked Paid.'); openAdmissionDetail(id); })
+          .catch(function () { showToast('Could not update payment status. Please try again.', true); });
+      }
+      if (!paid) {
+        update(ref(db, 'admissions/' + id), { payment_status: 'unpaid' })
+          .then(function () { if (statusEl) statusEl.textContent = 'Marked Unpaid.'; showToast('Marked Unpaid.'); openAdmissionDetail(id); })
+          .catch(function () { showToast('Could not update payment status. Please try again.', true); });
+        return;
+      }
+      if (a.status !== 'Admitted') { writePaid(); return; }
+      if (statusEl) statusEl.textContent = 'Sending payment-complete email…';
+      fetch(ADMISSIONS_ENDPOINT, { method: 'POST', redirect: 'follow', headers: { 'Accept': 'application/json' }, body: JSON.stringify({
+        form_type: 'admission_payment',
+        student_name: a.student_name || '',
+        email: a.email || '',
+        course: a.course || '',
+        student_id: a.student_id || ''
+      }) })
+        .then(function (res) { if (!res.ok) throw new Error('Server responded with status ' + res.status); return res.json(); })
+        .then(function (result) {
+          if (!result || result.success !== true) throw new Error((result && (result.error || result.message)) || 'Apps Script did not confirm the payment email. The record is still Unpaid.');
+          return writePaid();
+        })
+        .catch(function (err) {
+          if (statusEl) statusEl.textContent = 'Payment email failed: ' + (err && err.message ? err.message : err) + ' The record is still Unpaid, so you can retry.';
+          showToast('Payment email failed. Please try again.', true);
+        });
+    }
+
     /* ---- NEW Approve flow (Sir, 2026-10-26, CORRECTED 2026-10-26):
        Approve does NOT show the ID card preview, and — Sir's explicit
        correction — it does NOT send the ID card either. It only
@@ -1026,6 +1127,8 @@
       var admissionDate = formatCardDate(new Date());
       var body = document.getElementById('admission-approve-body');
       body.innerHTML = '<p>Approve <strong>' + escapeHtml(a.student_name || '') + '</strong>?</p>' +
+        '<p class="small">Payment status: <strong>' + (paymentStatusOf(a) === 'paid' ? 'Paid' : 'Unpaid') + '</strong>.' +
+        (paymentStatusOf(a) === 'paid' ? ' The confirmation email will say the admission fee payment is complete.' : ' The confirmation email will say the admission fee is still pending.') + '</p>' +
         '<p class="small">This will assign <strong>' + escapeHtml(studentId) + '</strong> and Admission Date <strong>' + escapeHtml(admissionDate) + '</strong> (today), mark this record Admitted, and send the congratulations/confirmation email <strong>without the ID card</strong>. The ID card will be sent separately, in a second email, only when you click <strong>Send ID Card by Email</strong> in the ID Card menu.</p>' +
         '<div id="admission-approve-status" class="small" style="margin-top:12px;"></div>' +
         '<button class="btn btn-primary btn-block" type="button" id="admission-confirm-approve-btn" style="margin-top:12px;">Confirm Approve &amp; Send Confirmation Email</button>';
@@ -1033,6 +1136,10 @@
       document.getElementById('admission-confirm-approve-btn').addEventListener('click', function () {
         var btn = this;
         var statusEl = document.getElementById('admission-approve-status');
+        // Unpaid-approve warning (Sir, 2026-10-27): approving with the
+        // fee unpaid is allowed, but Sir must confirm it knowingly —
+        // the student then gets the fee-pending email, not a surprise.
+        if (paymentStatusOf(a) !== 'paid' && !confirm('This student\'s admission fee is still unpaid. Approve anyway? The student will receive an email saying the admission fee is still pending.')) return;
         btn.disabled = true; btn.textContent = 'Sending confirmation…';
         // No ID card PNG is generated or posted here — deliberately.
         var payload = {
@@ -1042,7 +1149,8 @@
           course: a.course || '',
           country: a.country || '',
           student_id: studentId,
-          admission_date: admissionDate
+          admission_date: admissionDate,
+          payment_status: paymentStatusOf(a)
         };
         fetch(ADMISSIONS_ENDPOINT, { method: 'POST', redirect: 'follow', headers: { 'Accept': 'application/json' }, body: JSON.stringify(payload) })
           .then(function (res) { if (!res.ok) throw new Error('Server responded with status ' + res.status); return res.json(); })
@@ -1089,7 +1197,7 @@
         '</div>' +
         '<div class="form-row">' +
           '<div class="field"><label>Course</label><input type="text" id="id-card-course" value="' + escapeHtml(a.course || '') + '"></div>' +
-          '<div class="field"><label>Country</label><input type="text" id="id-card-country" value="' + escapeHtml(a.country || '') + '"></div>' +
+          '<div class="field"><label>Country</label><input type="text" id="id-card-country" value="' + escapeHtml(a.country || '') + '" placeholder="Search country…" autocomplete="off"></div>' +
         '</div>' +
         '<div class="form-row">' +
           '<div class="field"><label>Student ID</label><input type="text" id="id-card-student-id" value="' + escapeHtml(a.student_id || '') + '"></div>' +
@@ -1131,6 +1239,12 @@
       ['id-card-name', 'id-card-age', 'id-card-course', 'id-card-country', 'id-card-student-id', 'id-card-admission-date'].forEach(function (fid) {
         document.getElementById(fid).addEventListener('input', renderIdPreview);
       });
+      // Searchable country list (Sir, 2026-10-26) — same list as the
+      // public forms. Admin may still type a custom value here and
+      // save it; the public forms enforce the list, the menu does not.
+      if (typeof attachCountrySearch === 'function') {
+        attachCountrySearch(document.getElementById('id-card-country'));
+      }
       renderIdPreview();
       // Once the cropped photo is ready, re-render so the preview (and
       // any Download/Send capture from it) uses the undistorted photo.

@@ -3,6 +3,10 @@
 // =====================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+  // Spam-folder note (Sir, 2026-10-26): appended to every visitor-form
+  // success message, so a guardian who finds nothing in the inbox
+  // knows to check Spam/Promotions on their phone.
+  var SPAM_NOTE = ' Please check your Spam or Promotions folder on your phone if you do not see our email, and mark it as "Not Spam".';
 
   /* ---- Meta Pixel helper (safe no-op if pixel is blocked/missing) ---- */
   function trackFBEvent(eventName, params) {
@@ -198,8 +202,22 @@ document.addEventListener('DOMContentLoaded', function () {
       var honey = freeTrialForm.querySelector('input[name="_honey"]');
       if (honey && honey.value) {
         freeTrialForm.reset();
-        ftSetStatus('success', DEFAULT_SUCCESS_MSG);
+        ftSetStatus('success', DEFAULT_SUCCESS_MSG + SPAM_NOTE);
         return;
+      }
+
+      // Country must come from the searchable list (Sir, 2026-10-26) —
+      // free-typed text is normalised to the canonical name, and a
+      // value that matches no country is rejected before sending.
+      var ftCountryInput = freeTrialForm.querySelector('input[name="country"]');
+      if (ftCountryInput && typeof normalizeCountry === 'function') {
+        var ftCountry = normalizeCountry(ftCountryInput.value);
+        if (!ftCountry) {
+          ftSetStatus('error', 'Please select a country from the list — type the first letters (e.g. "Ca" for Canada) and tap the matching country.');
+          ftCountryInput.focus();
+          return;
+        }
+        ftCountryInput.value = ftCountry;
       }
 
       ftSubmitting = true;
@@ -243,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (result && result.success === true) {
           freeTrialForm.reset();
-          ftSetStatus('success', result.message || DEFAULT_SUCCESS_MSG);
+          ftSetStatus('success', (result.message || DEFAULT_SUCCESS_MSG) + SPAM_NOTE);
           trackFBEvent('CompleteRegistration', { content_name: 'Free Trial Booking' });
 
           // Also save to Firebase Realtime Database for the Admin Dashboard.
@@ -386,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var ctHoney = contactForm.querySelector('input[name="_honey"]');
       if (ctHoney && ctHoney.value) {
         contactForm.reset();
-        ctSetStatus('success', CT_DEFAULT_SUCCESS_MSG);
+        ctSetStatus('success', CT_DEFAULT_SUCCESS_MSG + SPAM_NOTE);
         return;
       }
 
@@ -423,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (ctResult && ctResult.success === true) {
           contactForm.reset();
-          ctSetStatus('success', ctResult.message || CT_DEFAULT_SUCCESS_MSG);
+          ctSetStatus('success', (ctResult.message || CT_DEFAULT_SUCCESS_MSG) + SPAM_NOTE);
           trackFBEvent('Contact');
 
           // Also save to Firebase Realtime Database for the Admin Dashboard
@@ -565,7 +583,18 @@ document.addEventListener('DOMContentLoaded', function () {
       if (adSubmitting) return;
       if (!admissionForm.checkValidity()) { admissionForm.reportValidity(); return; }
       var honey = admissionForm.querySelector('input[name="_honey"]');
-      if (honey && honey.value) { admissionForm.reset(); adSetStatus('success', AD_DEFAULT_SUCCESS_MSG); return; }
+      if (honey && honey.value) { admissionForm.reset(); adSetStatus('success', AD_DEFAULT_SUCCESS_MSG + SPAM_NOTE); return; }
+      // Country must come from the searchable list (Sir, 2026-10-26).
+      var adCountryInput = admissionForm.querySelector('input[name="country"]');
+      if (adCountryInput && typeof normalizeCountry === 'function') {
+        var adCountry = normalizeCountry(adCountryInput.value);
+        if (!adCountry) {
+          adSetStatus('error', 'Please select a country from the list — type the first letters (e.g. "Ca" for Canada) and tap the matching country.');
+          adCountryInput.focus();
+          return;
+        }
+        adCountryInput.value = adCountry;
+      }
       // Photo rule, enforced in-browser (Apps Script enforces it again server-side).
       if (adPhotoRequired() && !adPhotoDataUrl && !(adPhotoInput && adPhotoInput.files && adPhotoInput.files[0])) {
         adSetStatus('error', 'A student photo is required for the ID card, except for female students aged 12 and above.');
@@ -599,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function () {
           admissionForm.reset();
           adPhotoDataUrl = '';
           if (adPhotoPreview) adPhotoPreview.style.display = 'none';
-          adSetStatus('success', result.message || AD_DEFAULT_SUCCESS_MSG);
+          adSetStatus('success', (result.message || AD_DEFAULT_SUCCESS_MSG) + SPAM_NOTE);
           trackFBEvent('Lead');
           if (window.firebaseDB && window.fb) {
             try {
@@ -618,6 +647,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 photo_data_url: payload.photo_data_url || '',
                 photo_provided: payload.photo_provided || 'No',
                 status: 'Pending',
+                payment_status: 'unpaid',
                 read: false,
                 createdAt: Date.now(),
                 source: 'admission-form'
@@ -690,6 +720,38 @@ var COURSES = {
     ],
     who: 'Students who already read the Quran and wish to recite it with full correctness and beauty.',
     format: 'One-to-one live online classes with recitation practice, teacher correction, and recorded feedback.'
+  },
+  'islamic-studies': {
+    title: 'Islamic Studies',
+    tagline: 'Build a complete Islamic foundation — beliefs, worship, Seerah, and character.',
+    duration: 'Ongoing',
+    level: 'All levels · Age 5+',
+    icon: 'mosque',
+    overview: 'Islamic Studies gives students a complete foundation in their faith, beyond Quran reading alone. In age-appropriate, one-to-one lessons, students study what every Muslim should know: correct beliefs, how to worship, the life of the Prophet, the stories of the Prophets, authentic Hadith, Islamic manners, daily duas, the explanation of short surahs, and Islamic history — taught step by step, at the student\'s own pace.',
+    outcomes: [
+      'Understand Aqeedah: the six articles of faith — Tawheed, angels, prophets, divine books, the Day of Judgment, and destiny',
+      'Practise Fiqh of worship correctly: Wudu, Salah, fasting, Zakat, and Hajj',
+      'Know the Seerah of the Prophet, the stories of the Prophets, and Islamic history',
+      'Learn authentic Hadith, Islamic manners (Akhlaq), daily duas with meanings, and the explanation of short surahs (Tafseer)'
+    ],
+    who: 'Children aged 5 and above, and adults of any level — no prior Islamic knowledge is needed; lessons are adapted to age and level.',
+    format: 'One-to-one live online classes, flexible scheduling, with a qualified male or female teacher of your choice.'
+  },
+  'complete-quran-islamic-studies': {
+    title: 'Complete Quran & Islamic Studies Programme',
+    tagline: 'The full journey in one programme — Qaida, Nazera, Tajweed, Hifz, and Islamic Studies.',
+    duration: 'Ongoing (multi-year)',
+    level: 'All levels, by placement',
+    icon: 'heart-book',
+    overview: 'This is the complete programme for students who want everything in one journey. You progress step by step through Noorani Qaida, Quran Reading (Nazera), Tajweed, and Hifzul Quran, while Islamic Studies runs alongside throughout — Aqeedah, Fiqh of worship including Salah, Seerah, stories of the Prophets, Hadith, Akhlaq, daily duas, Tafseer, and Islamic history. One teacher-guided path, from the first Arabic letter to complete memorisation and a full Islamic foundation.',
+    outcomes: [
+      'Go from first Arabic letters to fluent Quran reading, beautiful Tajweed, and memorisation (Sabaq–Sabqi–Manzil)',
+      'Build correct beliefs (Aqeedah) and worship (Wudu, Salah, fasting, Zakat, Hajj)',
+      'Know the Seerah, the stories of the Prophets, authentic Hadith, and Islamic history',
+      'Live the faith with Islamic manners, daily duas, and the explanation of short surahs'
+    ],
+    who: 'Students of any age and level who want the full Quran and Islamic education in a single programme — your teacher places you at the right starting stage.',
+    format: 'One-to-one live online classes with a structured, long-term plan, regular progress tracking, and detailed reports for parents.'
   },
   'hifzul-quran': {
     title: 'Hifzul Quran',
