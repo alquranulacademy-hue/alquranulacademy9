@@ -8,18 +8,20 @@
 // AZHAR TITLING RULE (Sir, 2026-10-29): `title` is the series main
 // title, `sub` is the book's own first-page line (الكتاب + المستوى).
 (function () {
+  // Tab order (Sir, 2026-11-07): Quran first and the default tab;
+  // All Books is last and only opens when tapped.
   var CATS = [
-    { id: 'all', label: 'All Books' },
-    { id: 'azhar', label: 'Al-Azhar Books' },
     { id: 'quran', label: 'Quran' },
     { id: 'hadith', label: 'Hadith' },
-    { id: 'qaida', label: 'Noorani Qaida' }
+    { id: 'azhar', label: 'Al-Azhar Books' },
+    { id: 'qaida', label: 'Noorani Qaida' },
+    { id: 'all', label: 'All Books' }
   ];
 
   var AZHAR_MAIN = 'لتعليم اللغة العربية للناطقين بغيرها';
   var BOOKS = [
     { title: AZHAR_MAIN, sub: 'الكتاب الأول — المستوى المبتدئ الأول', cat: 'azhar', size: '17.7 MB', file: 'books/azhar-kitab-1.pdf', cover: 'books/covers/azhar-kitab-1.jpg' },
-    { title: AZHAR_MAIN, sub: 'الكتاب الثاني — المستوى المبتدئ الثاني', cat: 'azhar', size: '20.4 MB', file: 'books/azhar-kitab-2.pdf', cover: 'books/covers/azhar-kitab-2.jpg' },
+    { title: AZHAR_MAIN, sub: 'الكتاب الثاني — المستوى المبتدئ الثاني', cat: 'azhar', size: '23.0 MB', file: 'books/azhar-kitab-2.pdf', cover: 'books/covers/azhar-kitab-2.jpg' },
     { title: AZHAR_MAIN, sub: 'الكتاب الثالث — المستوى المتوسط الأول', cat: 'azhar', size: '21.0 MB', file: 'books/azhar-kitab-3.pdf', cover: 'books/covers/azhar-kitab-3.jpg' },
     { title: AZHAR_MAIN, sub: 'الكتاب الرابع — المستوى المتوسط الثاني', cat: 'azhar', size: '16.7 MB', file: 'books/azhar-kitab-4.pdf', cover: 'books/covers/azhar-kitab-4.jpg' },
     { title: AZHAR_MAIN, sub: 'الكتاب الخامس — المستوى المتقدم الأول', cat: 'azhar', size: '17.5 MB', file: 'books/azhar-kitab-5.pdf', cover: 'books/covers/azhar-kitab-5.jpg' },
@@ -74,7 +76,7 @@
   var emptyEl = document.getElementById('books-empty');
   if (!tabsEl || !gridEl) return;
 
-  var active = 'all';
+  var active = 'quran';
   try {
     var q = new URLSearchParams(window.location.search).get('cat');
     if (q && catLabel(q) !== q) active = q;
