@@ -309,6 +309,7 @@ table.admin-table{
 .status-Cancelled{background:#FBEAEA;color:#9B2C2C;}
 .pay-paid{background:var(--emerald-100);color:var(--emerald-800);}
 .pay-unpaid{background:#FBEAEA;color:#9B2C2C;}
+.hidden-badge{display:inline-block;background:#FBEAEA;color:#9B2C2C;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;}
 
 .pub-yes{background:var(--emerald-100);color:var(--emerald-800);}
 .pub-no,

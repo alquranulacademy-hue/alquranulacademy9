@@ -841,3 +841,19 @@ html[lang="bn"] p{line-height:1.9;}
 html[lang="bn"] .eyebrow, html[lang="bn"] .site-footer h4{letter-spacing:0;text-transform:none;font-family:'Hind Siliguri',sans-serif;}
 html[lang="bn"] .brand span, html[lang="bn"] .footer-brand span{font-family:'Noto Serif Bengali',serif;}
 html[lang="bn"] button, html[lang="bn"] input, html[lang="bn"] textarea, html[lang="bn"] select{font-family:'Hind Siliguri',sans-serif;}
+
+/* Books page */
+.book-tabs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;}
+.book-tab{padding:10px 20px;border-radius:999px;border:1.5px solid var(--emerald-800);background:#fff;color:var(--emerald-900);font-weight:700;cursor:pointer;}
+.book-tab.active{background:var(--emerald-800);color:#fff;}
+.book-card{padding:22px;display:flex;flex-direction:column;gap:6px;}
+.book-cover{height:150px;border-radius:14px;background:linear-gradient(135deg,var(--emerald-900),var(--emerald-600));display:flex;align-items:center;justify-content:center;font-size:56px;margin-bottom:8px;position:relative;overflow:hidden;}
+.book-cover img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%;object-fit:contain;display:block;}
+.book-card h3{font-size:20px;line-height:1.5;margin:0;}
+.book-cat{font-weight:700;color:var(--emerald-800);margin:0;}
+.book-sub{font-weight:700;color:var(--ink);font-size:17px;line-height:1.6;margin:0;}
+.book-size{color:var(--ink-soft);font-size:14px;margin:0;}
+.book-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:auto;padding-top:10px;}
+.book-download{border:1.5px solid var(--emerald-700);color:var(--emerald-800);background:#fff;}
+.book-actions .btn[disabled]{opacity:.55;cursor:default;}
+.book-empty{text-align:center;font-weight:700;padding:30px 0;}
