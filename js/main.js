@@ -768,6 +768,22 @@ var COURSES = {
     ],
     who: 'Students who read the Quran fluently and are ready to commit to a memorisation journey, children or adults.',
     format: 'One-to-one live online classes, daily or several times weekly, with detailed progress reports for parents.'
+  },
+  'arabic-language': {
+    title: 'Arabic Language Course',
+    tagline: 'Learn Arabic from the very beginning to advanced — reading, writing, speaking, and understanding the Quran.',
+    duration: 'Ongoing',
+    level: 'All levels · Beginner to Advanced',
+    icon: 'open-book',
+    overview: 'This course teaches the Arabic language itself, step by step from the very beginning to an advanced level. Students start with the alphabet and correct pronunciation, then build reading, writing, and speaking skills, and move on to grammar (Sarf and Nahw), vocabulary, and understanding Arabic texts — including the language of the Quran. Lessons are one-to-one and adapted to each student\'s level, whether a complete beginner or someone who already reads Arabic and wants to understand it deeply.',
+    outcomes: [
+      'Read and write Arabic script confidently from the alphabet upward',
+      'Speak and understand everyday Arabic with correct pronunciation',
+      'Learn essential grammar (Sarf and Nahw) step by step',
+      'Understand the Arabic of the Quran and classical texts'
+    ],
+    who: 'Anyone of any age, from any country, who wants to learn Arabic — complete beginners, and students who already read Arabic but want to understand it. No prior knowledge is needed.',
+    format: 'One-to-one live online classes, flexible scheduling, with a qualified male or female teacher of your choice.'
   }
 };
 

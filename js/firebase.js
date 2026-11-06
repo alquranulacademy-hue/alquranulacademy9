@@ -42,7 +42,9 @@ import {
   getStorage,
   ref as storageRef,
   uploadBytes,
-  getDownloadURL
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 // =====================================================================
@@ -101,7 +103,7 @@ window.firebaseInitError = initError;
 window.fb = {
   ref, get, set, push, update, remove, query, orderByChild, equalTo, onValue,
   signInWithEmailAndPassword, onAuthStateChanged, signOut,
-  storageRef, uploadBytes, getDownloadURL
+  storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject
 };
 
 // Classic <script defer> tags execute after this module has finished

@@ -274,6 +274,7 @@
     initCourses();
     initBlog();
     initNotices();
+    initBooks();
     initOverlayClosers();
     initNotifications();
   }
@@ -1714,6 +1715,181 @@
   // NOTICES
   // ---------------------------------------------------------------------
   var noticesCache = [];
+
+
+  // ---------------------------------------------------------------------
+  // Books (Sir, 2026-10-28): dashboard upload -> public Books page.
+  // Upload PDF to Storage /books/, then push an RTDB `books` record;
+  // js/books.js merges RTDB books over its built-in list (dedup by exact
+  // title), so the book appears on the site with no code change.
+  // Delete is two-step (click, then click again to confirm) — no native
+  // confirm() dialog, so it works for automation as well as for Sir.
+  // ---------------------------------------------------------------------
+  var BOOK_CATS = [
+    { id: 'azhar', label: 'Al-Azhar Books' },
+    { id: 'quran', label: 'Quran' },
+    { id: 'hadith', label: 'Hadith' },
+    { id: 'qaida', label: 'Noorani Qaida' }
+  ];
+  function bookCatLabel(id) {
+    for (var i = 0; i < BOOK_CATS.length; i++) {
+      if (BOOK_CATS[i].id === id) return BOOK_CATS[i].label;
+    }
+    return id;
+  }
+  function formatMB(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function initBooks() {
+    var listEl = document.getElementById('books-list');
+    var overlay = document.getElementById('book-form-overlay');
+    var form = document.getElementById('book-form');
+    var addBtn = document.getElementById('add-book-btn');
+    if (!listEl) return;
+    var booksCache = [];
+
+    onValue(ref(db, 'books'), function (snap) {
+      booksCache = objectToEntries(snap.val());
+      booksCache.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      renderBooks();
+    }, function () {
+      listEl.innerHTML = '<p class="small">Could not load books. Check your connection and Firebase security rules.</p>';
+    });
+
+    // Combined dashboard list: built-in books (from books.js, if it
+    // loaded) overlaid with dashboard records by exact title, so every
+    // book on the public page can be hidden from here. Hidden books
+    // stay in this list with a badge — Hide only removes them from the
+    // public page, never deletes them; Show brings them back.
+    function combinedBooks() {
+      var map = {};
+      var list = [];
+      (window.AQA_BOOKS || []).forEach(function (b) {
+        var e = { key: 'builtin:' + b.title, title: b.title, sub: b.sub || '', cat: b.cat, size: b.size || '', file: b.file || '', hidden: false, id: null, marker: false };
+        map[b.title] = e;
+        list.push(e);
+      });
+      booksCache.forEach(function (r) {
+        var e = map[r.title];
+        if (e) {
+          e.id = r.id;
+          e.marker = !r.file;
+          if (r.file) e.file = r.file;
+          if (r.size) e.size = r.size;
+          if (r.cat) e.cat = r.cat;
+          e.hidden = r.hidden === true;
+        } else {
+          list.push({ key: 'rtdb:' + r.id, title: r.title, sub: '', cat: r.cat, size: r.size || '', file: r.file || '', hidden: r.hidden === true, id: r.id, marker: false });
+        }
+      });
+      return list;
+    }
+
+    function renderBooks() {
+      var list = combinedBooks();
+      if (!list.length) {
+        listEl.innerHTML = '<p class="small">No books yet &mdash; built-in books appear here automatically; click &quot;+ Add Book&quot; to add one.</p>';
+        return;
+      }
+      listEl.innerHTML = list.map(function (b) {
+        return '<div class="admin-item-card">' +
+          '<div class="admin-item-info">' +
+            '<h4>' + escapeHtml(b.title) + '</h4>' +
+            (b.sub ? '<p>' + escapeHtml(b.sub) + '</p>' : '') +
+            '<p>' + escapeHtml(bookCatLabel(b.cat)) + (b.size ? ' &middot; ' + escapeHtml(b.size) : '') + '</p>' +
+            (b.hidden ? '<p style="margin-top:4px;"><span class="hidden-badge">Hidden from public page</span></p>' : '') +
+            (b.file ? '<p style="margin-top:4px;"><a href="' + escapeHtml(b.file) + '" target="_blank" rel="noopener">Open PDF</a></p>' : '') +
+          '</div>' +
+          '<div class="admin-item-actions">' +
+            '<button class="btn btn-sm" data-hide-book="' + escapeHtml(b.key) + '" type="button">' + (b.hidden ? 'Show' : 'Hide') + '</button>' +
+            (b.id && !b.marker ? '<button class="btn btn-sm btn-danger" data-delete-book="' + b.id + '" type="button">Delete</button>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      listEl.querySelectorAll('[data-hide-book]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var book = list.find(function (x) { return x.key === btn.getAttribute('data-hide-book'); });
+          if (!book) return;
+          btn.disabled = true;
+          if (book.id && book.marker) {
+            // Showing a built-in book hidden via a marker removes the marker.
+            remove(ref(db, 'books/' + book.id)).then(function () {
+              showToast('Book is visible on the Books page again.');
+            }).catch(function () { showToast('Could not change visibility.', true); btn.disabled = false; });
+          } else if (book.id) {
+            update(ref(db, 'books/' + book.id), { hidden: !book.hidden }).then(function () {
+              showToast(book.hidden ? 'Book is visible on the Books page again.' : 'Book hidden from the public page.');
+            }).catch(function () { showToast('Could not change visibility.', true); btn.disabled = false; });
+          } else {
+            push(ref(db, 'books'), { title: book.title, cat: book.cat, hidden: true, createdAt: Date.now() }).then(function () {
+              showToast('Book hidden from the public page.');
+            }).catch(function () { showToast('Could not change visibility.', true); btn.disabled = false; });
+          }
+        });
+      });
+
+      listEl.querySelectorAll('[data-delete-book]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (btn.getAttribute('data-armed') === '1') {
+            var id = btn.getAttribute('data-delete-book');
+            var book = booksCache.find(function (x) { return x.id === id; });
+            remove(ref(db, 'books/' + id)).then(function () {
+              if (book && book.storagePath && window.firebaseStorage && fbfns.deleteObject) {
+                fbfns.deleteObject(fbfns.storageRef(window.firebaseStorage, book.storagePath)).catch(function () {});
+              }
+              showToast('Book deleted.');
+            }).catch(function () { showToast('Could not delete book.', true); });
+            return;
+          }
+          btn.setAttribute('data-armed', '1');
+          btn.textContent = 'Click again to confirm';
+          setTimeout(function () {
+            if (document.body.contains(btn)) { btn.removeAttribute('data-armed'); btn.textContent = 'Delete'; }
+          }, 5000);
+        });
+      });
+    }
+
+    if (addBtn && overlay) {
+      addBtn.addEventListener('click', function () {
+        form.reset();
+        document.getElementById('book-form-status').textContent = '';
+        overlay.classList.add('show');
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var title = document.getElementById('book-title').value.trim();
+        var cat = document.getElementById('book-category').value;
+        var url = document.getElementById('book-file-url').value.trim();
+        var size = document.getElementById('book-size').value.trim();
+        var statusEl = document.getElementById('book-form-status');
+        var submitBtn = document.getElementById('book-submit-btn');
+        if (!title) { statusEl.textContent = 'Please enter a book title.'; return; }
+        if (!url || !/^https?:\/\//i.test(url)) {
+          statusEl.textContent = 'Please paste a valid PDF link starting with http:// or https://.'; return;
+        }
+        submitBtn.disabled = true;
+        push(ref(db, 'books'), {
+          title: title, cat: cat, size: size,
+          file: url, createdAt: Date.now()
+        }).then(function () {
+          submitBtn.disabled = false;
+          form.reset();
+          overlay.classList.remove('show');
+          showToast('Book added — it is now on the Books page.');
+        }).catch(function () {
+          submitBtn.disabled = false;
+          statusEl.textContent = 'Could not save the book. Check your connection and try again.';
+        });
+      });
+    }
+  }
+
 
   function initNotices() {
     var listEl = document.getElementById('notices-list');
