@@ -38,6 +38,10 @@
       ".read": true,
       ".write": "auth != null"
     },
+    "books": {
+      ".read": true,
+      ".write": "auth != null"
+    },
     ".read": false,
     ".write": false
   }

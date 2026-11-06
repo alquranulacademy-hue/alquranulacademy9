@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="assets/logo.png" type="image/png">
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/admin.css?v=20261027a">
+<link rel="stylesheet" href="css/admin.css?v=20261029c">
 <!-- ID card fonts (Sir's final frame): Playfair Display + Poppins, so the emailed PNG matches the approved design, not Georgia/Arial fallbacks. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,6 +49,7 @@
       <button class="admin-tab-btn" data-tab="courses" type="button">Courses</button>
       <button class="admin-tab-btn" data-tab="blog" type="button">Blog Posts</button>
       <button class="admin-tab-btn" data-tab="notices" type="button">Notices</button>
+      <button class="admin-tab-btn" data-tab="books" type="button">Books</button>
     </nav>
 
     <main class="admin-main">
@@ -189,6 +190,18 @@
         <p class="small" style="margin-bottom:18px;">The most recent <strong>active</strong> notice is shown in a bar at the top of every page on the public site.</p>
         <div id="notices-list">
           <p class="small">Loading notices&hellip;</p>
+        </div>
+      </section>
+
+      <!-- ============================= BOOKS ============================= -->
+      <section class="admin-panel" id="panel-books">
+        <div class="admin-panel-head">
+          <h2>Books</h2>
+          <button class="btn btn-primary btn-sm" id="add-book-btn" type="button">+ Add Book</button>
+        </div>
+        <p class="small" style="margin-bottom:18px;">Paste a PDF link (e.g. from Google Drive) and it appears on the public Books page automatically, under the category you choose. No code change needed, no paid storage required. Use Hide to remove a book from the public page without deleting it — it stays here with a Hidden badge, and Show brings it back.</p>
+        <div id="books-list">
+          <p class="small">Loading books&hellip;</p>
         </div>
       </section>
 
@@ -343,9 +356,33 @@
 
   <div class="admin-toast" id="admin-toast"></div>
 
+  <!-- ============================= BOOK FORM OVERLAY ============================= -->
+  <div class="admin-form-overlay" id="book-form-overlay">
+    <div class="admin-form-panel">
+      <button class="admin-form-close" type="button" data-close="book-form-overlay" aria-label="Close">&times;</button>
+      <h3>Add Book</h3>
+      <form id="book-form" novalidate>
+        <div class="field"><label>Book Title</label><input type="text" id="book-title" required placeholder="e.g. المستوى الأول 2022"></div>
+        <div class="field"><label>Category</label>
+          <select id="book-category">
+            <option value="azhar">Al-Azhar Books</option>
+            <option value="quran">Quran</option>
+            <option value="hadith">Hadith</option>
+            <option value="qaida">Noorani Qaida</option>
+          </select>
+        </div>
+        <div class="field"><label>PDF Link</label><input type="url" id="book-file-url" required placeholder="e.g. https://drive.google.com/file/d/.../view"></div>
+        <div class="field"><label>File Size (optional)</label><input type="text" id="book-size" placeholder="e.g. 22 MB"></div>
+        <p class="small" id="book-form-status" style="color:#9B2C2C;"></p>
+        <button class="btn btn-primary" id="book-submit-btn" type="submit">Add Book</button>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="js/firebase.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="js/countries.js?v=20261026i" defer></script>
-  <script src="js/admin.js?v=20261027a" defer></script>
+  <script src="js/books.js?v=20261029d" defer></script>
+  <script src="js/admin.js?v=20261029c" defer></script>
 </body>
 </html>
